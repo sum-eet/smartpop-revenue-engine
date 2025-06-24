@@ -1,7 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Zap, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Hero = () => {
   return (
@@ -32,9 +32,11 @@ export const Hero = () => {
               Start Free Trial
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Button variant="outline" size="lg" className="bg-white/10 border-white/30 text-white hover:bg-white/20 px-8 py-4 text-lg">
-              View Demo
-            </Button>
+            <Link to="/demo">
+              <Button variant="outline" size="lg" className="bg-white/10 border-white/30 text-white hover:bg-white/20 px-8 py-4 text-lg">
+                View Demo
+              </Button>
+            </Link>
           </div>
           
           <div className="flex flex-wrap justify-center items-center gap-8 pt-8 text-blue-200">
