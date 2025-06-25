@@ -9,13 +9,207 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      popup_campaigns: {
+        Row: {
+          created_at: string | null
+          discount_code: string | null
+          discount_percent: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          position: string | null
+          shop_id: string | null
+          subtitle: string | null
+          template: string | null
+          title: string
+          triggers: Json | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discount_code?: string | null
+          discount_percent?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          position?: string | null
+          shop_id?: string | null
+          subtitle?: string | null
+          template?: string | null
+          title: string
+          triggers?: Json | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discount_code?: string | null
+          discount_percent?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          position?: string | null
+          shop_id?: string | null
+          subtitle?: string | null
+          template?: string | null
+          title?: string
+          triggers?: Json | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popup_campaigns_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      popup_conversions: {
+        Row: {
+          campaign_id: string | null
+          converted_at: string | null
+          discount_code_used: string | null
+          email: string | null
+          id: string
+          order_id: string | null
+          revenue_amount: number | null
+          shop_id: string | null
+          view_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          converted_at?: string | null
+          discount_code_used?: string | null
+          email?: string | null
+          id?: string
+          order_id?: string | null
+          revenue_amount?: number | null
+          shop_id?: string | null
+          view_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          converted_at?: string | null
+          discount_code_used?: string | null
+          email?: string | null
+          id?: string
+          order_id?: string | null
+          revenue_amount?: number | null
+          shop_id?: string | null
+          view_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popup_conversions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "popup_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "popup_conversions_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "popup_conversions_view_id_fkey"
+            columns: ["view_id"]
+            isOneToOne: false
+            referencedRelation: "popup_views"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      popup_views: {
+        Row: {
+          campaign_id: string | null
+          id: string
+          page_url: string | null
+          session_id: string | null
+          shop_id: string | null
+          user_agent: string | null
+          viewed_at: string | null
+          visitor_ip: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          id?: string
+          page_url?: string | null
+          session_id?: string | null
+          shop_id?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+          visitor_ip?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          id?: string
+          page_url?: string | null
+          session_id?: string | null
+          shop_id?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+          visitor_ip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popup_views_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "popup_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "popup_views_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shops: {
+        Row: {
+          access_token: string
+          id: string
+          installed_at: string | null
+          scope: string | null
+          shop_domain: string
+          updated_at: string | null
+        }
+        Insert: {
+          access_token: string
+          id?: string
+          installed_at?: string | null
+          scope?: string | null
+          shop_domain: string
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          id?: string
+          installed_at?: string | null
+          scope?: string | null
+          shop_domain?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_default_campaigns: {
+        Args: { shop_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
