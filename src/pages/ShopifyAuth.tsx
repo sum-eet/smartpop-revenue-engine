@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,8 +15,8 @@ const ShopifyAuth = () => {
     const code = searchParams.get('code');
     
     if (code && shop) {
-      // OAuth callback - redirect to function
-      window.location.href = `${window.location.origin}/functions/v1/shopify-auth?${searchParams.toString()}`;
+      // OAuth callback - redirect to Supabase Edge Function
+      window.location.href = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth?${searchParams.toString()}`;
     } else if (shop) {
       setStatus('success');
       setMessage(`App successfully installed on ${shop}!`);

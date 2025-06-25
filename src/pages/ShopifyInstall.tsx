@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,8 +18,8 @@ const ShopifyInstall = () => {
     const cleanDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\.myshopify\.com.*$/, '');
     const fullDomain = cleanDomain.includes('.') ? cleanDomain : `${cleanDomain}.myshopify.com`;
     
-    // Redirect to Shopify OAuth
-    window.location.href = `${window.location.origin}/functions/v1/shopify-auth?shop=${fullDomain}`;
+    // Redirect directly to Supabase Edge Function
+    window.location.href = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth?shop=${fullDomain}`;
   };
 
   return (
