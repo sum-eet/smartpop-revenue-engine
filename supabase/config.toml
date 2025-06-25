@@ -1,1 +1,14 @@
+
 project_id = "zsmoutzjhqjgjehaituw"
+
+[functions.shopify-auth]
+verify_jwt = false
+
+[functions.shopify-webhook] 
+verify_jwt = false
+
+[functions.popup-config]
+verify_jwt = false
+
+[functions.popup-track]
+verify_jwt = false
