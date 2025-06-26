@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.popup-track]
 verify_jwt = false
+
+[functions.install-script]
+verify_jwt = false

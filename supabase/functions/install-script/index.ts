@@ -22,26 +22,39 @@ serve(async (req) => {
     // Get shop access token
     const { data: shopData, error } = await supabase
       .from('shops')
-      .select('access_token')
+      .select('access_token, scope')
       .eq('shop_domain', shop)
       .single()
 
+    console.log('Shop query result:', { shopData, error, shop })
+
     if (error || !shopData) {
-      return new Response(JSON.stringify({ error: 'Shop not found' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Shop not found',
+        details: error?.message,
+        shop: shop 
+      }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
+    console.log('Found shop with access token length:', shopData.access_token?.length)
+
     // Check if script tag already exists
+    console.log('Checking existing script tags...')
     const existingScriptsResponse = await fetch(`https://${shop}/admin/api/2023-10/script_tags.json`, {
       headers: {
         'X-Shopify-Access-Token': shopData.access_token
       }
     })
 
+    console.log('Existing scripts response status:', existingScriptsResponse.status)
+
     if (existingScriptsResponse.ok) {
       const existingScripts = await existingScriptsResponse.json()
+      console.log('Found', existingScripts.script_tags?.length, 'existing script tags')
+      
       const smartPopScript = existingScripts.script_tags.find((script: any) => 
         script.src.includes('smartpop-revenue-engine.vercel.app/popup-script.js')
       )
@@ -55,26 +68,36 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+    } else {
+      const errorText = await existingScriptsResponse.text()
+      console.error('Failed to get existing scripts:', errorText)
     }
 
     // Install script tag
+    console.log('Installing new script tag...')
+    const scriptTagPayload = {
+      script_tag: {
+        event: 'onload',
+        src: 'https://smartpop-revenue-engine.vercel.app/popup-script.js'
+      }
+    }
+    
+    console.log('Script tag payload:', JSON.stringify(scriptTagPayload))
+    
     const scriptTagResponse = await fetch(`https://${shop}/admin/api/2023-10/script_tags.json`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Shopify-Access-Token': shopData.access_token
       },
-      body: JSON.stringify({
-        script_tag: {
-          event: 'onload',
-          src: 'https://smartpop-revenue-engine.vercel.app/popup-script.js'
-        }
-      })
+      body: JSON.stringify(scriptTagPayload)
     })
+
+    console.log('Script tag response status:', scriptTagResponse.status)
 
     if (scriptTagResponse.ok) {
       const scriptTagData = await scriptTagResponse.json()
-      console.log('Script tag installed successfully for', shop)
+      console.log('Script tag installed successfully for', shop, scriptTagData)
       
       return new Response(JSON.stringify({ 
         message: 'Script tag installed successfully',
@@ -89,7 +112,9 @@ serve(async (req) => {
       
       return new Response(JSON.stringify({ 
         error: 'Failed to install script tag',
-        details: errorText
+        details: errorText,
+        status: scriptTagResponse.status,
+        shop: shop
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
