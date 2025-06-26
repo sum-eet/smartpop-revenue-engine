@@ -61,6 +61,32 @@ serve(async (req) => {
           // Create default campaigns
           await supabase.rpc('create_default_campaigns', { shop_uuid: shopData.id })
           console.log('Created default campaigns for shop:', shop)
+          
+          // Install popup script tag
+          try {
+            const scriptTagResponse = await fetch(`https://${shop}/admin/api/2023-10/script_tags.json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': tokenData.access_token
+              },
+              body: JSON.stringify({
+                script_tag: {
+                  event: 'onload',
+                  src: 'https://smartpop-revenue-engine.vercel.app/popup-script.js'
+                }
+              })
+            })
+            
+            if (scriptTagResponse.ok) {
+              const scriptTagData = await scriptTagResponse.json()
+              console.log('Script tag installed successfully:', scriptTagData)
+            } else {
+              console.error('Failed to install script tag:', await scriptTagResponse.text())
+            }
+          } catch (scriptError) {
+            console.error('Error installing script tag:', scriptError)
+          }
         }
         
         // Redirect to success page with shop parameter
