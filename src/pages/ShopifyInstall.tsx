@@ -18,8 +18,9 @@ const ShopifyInstall = () => {
     const cleanDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\.myshopify\.com.*$/, '');
     const fullDomain = cleanDomain.includes('.') ? cleanDomain : `${cleanDomain}.myshopify.com`;
     
-    // Redirect directly to Supabase Edge Function
-    window.location.href = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth?shop=${fullDomain}`;
+    // Open OAuth in new window to avoid iframe restrictions
+    const authUrl = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth?shop=${fullDomain}`;
+    window.open(authUrl, '_blank', 'width=600,height=700,scrollbars=yes,resizable=yes');
   };
 
   return (

@@ -45,8 +45,11 @@ const Dashboard = () => {
   const totalViews = campaigns.reduce((sum, campaign) => sum + campaign.views, 0);
   const avgConversionRate = totalViews > 0 ? (totalConversions / totalViews) * 100 : 0;
 
+  // Check if running inside Shopify admin iframe
+  const isInShopifyFrame = window !== window.top;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`${isInShopifyFrame ? 'min-h-full' : 'min-h-screen'} bg-gray-50`}>
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
