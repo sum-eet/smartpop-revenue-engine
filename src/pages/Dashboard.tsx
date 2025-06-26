@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye } from 'lucide-react';
+import { PopupCreationModal } from '@/components/PopupCreationModal';
 
 const Dashboard = () => {
+  const [isPopupModalOpen, setIsPopupModalOpen] = useState(false);
   const [campaigns] = useState([
     {
       id: 1,
@@ -58,9 +60,12 @@ const Dashboard = () => {
               <h1 className="text-2xl font-bold text-gray-900">SmartPop Dashboard</h1>
               <p className="text-gray-600">My Awesome Store</p>
             </div>
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsPopupModalOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-2" />
-              New Campaign
+              Create Popup
             </Button>
           </div>
         </div>
@@ -233,6 +238,12 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Popup Creation Modal */}
+      <PopupCreationModal 
+        isOpen={isPopupModalOpen}
+        onClose={() => setIsPopupModalOpen(false)}
+      />
     </div>
   );
 };
