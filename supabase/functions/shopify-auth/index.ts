@@ -18,6 +18,8 @@ serve(async (req) => {
     const code = url.searchParams.get('code')
     const hmac = url.searchParams.get('hmac')
     
+    console.log('Shopify auth request:', { shop, code: !!code, hmac: !!hmac })
+    
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -25,6 +27,7 @@ serve(async (req) => {
 
     // Handle OAuth callback
     if (code && shop) {
+      console.log('Processing OAuth callback for shop:', shop)
       const clientId = Deno.env.get('SHOPIFY_CLIENT_ID')
       const clientSecret = Deno.env.get('SHOPIFY_CLIENT_SECRET')
       
@@ -40,6 +43,7 @@ serve(async (req) => {
       })
       
       const tokenData = await tokenResponse.json()
+      console.log('Token exchange response:', { success: !!tokenData.access_token })
       
       if (tokenData.access_token) {
         // Store shop data in database
@@ -56,14 +60,18 @@ serve(async (req) => {
         if (!error && shopData) {
           // Create default campaigns
           await supabase.rpc('create_default_campaigns', { shop_uuid: shopData.id })
+          console.log('Created default campaigns for shop:', shop)
         }
         
-        // Redirect to success page
+        // Redirect to success page with shop parameter
+        const successUrl = `https://smartpop-revenue-engine.vercel.app/auth/shopify?shop=${shop}`
+        console.log('Redirecting to success URL:', successUrl)
+        
         return new Response(null, {
           status: 302,
           headers: {
             ...corsHeaders,
-            'Location': `https://${shop}/admin/apps/smartpop-revenue-engine`
+            'Location': successUrl
           }
         })
       }
@@ -71,8 +79,10 @@ serve(async (req) => {
     
     // Handle initial OAuth request
     if (shop) {
+      console.log('Initiating OAuth for shop:', shop)
       const clientId = Deno.env.get('SHOPIFY_CLIENT_ID')
-      const redirectUri = `${url.origin}/auth/shopify/callback`
+      // Fix: Use the correct redirect URI that matches your route
+      const redirectUri = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth`
       const scopes = 'read_orders,read_customers,write_script_tags'
       
       const authUrl = `https://${shop}/admin/oauth/authorize?` +
@@ -80,6 +90,8 @@ serve(async (req) => {
         `scope=${scopes}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `state=${shop}`
+      
+      console.log('Redirecting to Shopify OAuth:', authUrl)
       
       return new Response(null, {
         status: 302,
@@ -96,6 +108,7 @@ serve(async (req) => {
     })
     
   } catch (error) {
+    console.error('Shopify auth error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
