@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { shop, campaignId, event, email, discountCode, sessionId } = body
+    const { shop, popupId, eventType, email, discountCode, pageUrl, timestamp } = body
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -31,37 +31,42 @@ serve(async (req) => {
       throw new Error('Shop not found')
     }
     
-    if (event === 'view') {
+    if (eventType === 'view') {
       // Track popup view
-      const { data: view } = await supabase
-        .from('popup_views')
+      const { data: event } = await supabase
+        .from('popup_events')
         .insert({
-          shop_id: shopData.id,
-          campaign_id: campaignId,
-          session_id: sessionId,
+          popup_id: popupId,
+          event_type: 'view',
+          shop_domain: shop,
+          page_url: pageUrl,
+          timestamp: timestamp,
           visitor_ip: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For'),
-          user_agent: req.headers.get('User-Agent'),
-          page_url: body.pageUrl
+          user_agent: req.headers.get('User-Agent')
         })
         .select()
         .single()
       
-      return new Response(JSON.stringify({ success: true, viewId: view?.id }), {
+      return new Response(JSON.stringify({ success: true, eventId: event?.id }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
     
-    if (event === 'conversion') {
+    if (eventType === 'conversion') {
       // Track conversion
       await supabase
-        .from('popup_conversions')
+        .from('popup_events')
         .insert({
-          shop_id: shopData.id,
-          campaign_id: campaignId,
-          view_id: body.viewId,
+          popup_id: popupId,
+          event_type: 'conversion',
+          shop_domain: shop,
+          page_url: pageUrl,
+          timestamp: timestamp,
           email: email,
-          discount_code_used: discountCode
+          discount_code_used: discountCode,
+          visitor_ip: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For'),
+          user_agent: req.headers.get('User-Agent')
         })
       
       return new Response(JSON.stringify({ success: true }), {

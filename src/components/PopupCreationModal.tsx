@@ -137,24 +137,50 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSave = () => {
-    // Here we would save the popup configuration
-    console.log('Saving popup:', popupConfig);
-    onClose();
-    setStep(1);
-    setPopupConfig({
-      name: '',
-      triggerType: '' as TriggerType,
-      triggerValue: '',
-      pageTarget: '' as PageTarget,
-      popupType: '' as PopupType,
-      title: '',
-      description: '',
-      buttonText: '',
-      emailPlaceholder: 'Enter your email',
-      discountCode: '',
-      discountPercent: '',
-    });
+  const handleSave = async () => {
+    try {
+      // Save popup configuration to database
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...popupConfig,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        const savedPopup = await response.json();
+        console.log('Popup saved successfully:', savedPopup);
+        
+        // Reset form and close modal
+        onClose();
+        setStep(1);
+        setPopupConfig({
+          name: '',
+          triggerType: '' as TriggerType,
+          triggerValue: '',
+          pageTarget: '' as PageTarget,
+          popupType: '' as PopupType,
+          title: '',
+          description: '',
+          buttonText: '',
+          emailPlaceholder: 'Enter your email',
+          discountCode: '',
+          discountPercent: '',
+        });
+        
+        // Refresh the page to show the new popup in the campaigns list
+        window.location.reload();
+      } else {
+        console.error('Failed to save popup');
+      }
+    } catch (error) {
+      console.error('Error saving popup:', error);
+    }
   };
 
   const renderStepContent = () => {
@@ -306,9 +332,9 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
                 </TabsList>
                 
                 <TabsContent value="design" className="space-y-6 mt-6">
-                <div>
-                  <Label className="text-base font-medium">Popup Type</Label>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <Label className="text-base font-medium">Popup Type</Label>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                     {popupTypes.map((type) => {
                       const IconComponent = type.icon;
                       return (
@@ -333,79 +359,79 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
                         </Card>
                       );
                     })}
+                    </div>
                   </div>
-                </div>
 
-                {popupConfig.popupType && (
-                  <div className="space-y-4 border-t pt-6">
-                    <div>
-                      <Label htmlFor="popup-title">Popup Title</Label>
-                      <Input
-                        id="popup-title"
-                        value={popupConfig.title}
-                        onChange={(e) => setPopupConfig(prev => ({ ...prev, title: e.target.value }))}
-                        placeholder="Enter your popup title"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="popup-description">Description</Label>
-                      <Textarea
-                        id="popup-description"
-                        value={popupConfig.description}
-                        onChange={(e) => setPopupConfig(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Enter your popup description"
-                        rows={3}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="button-text">Button Text</Label>
-                      <Input
-                        id="button-text"
-                        value={popupConfig.buttonText}
-                        onChange={(e) => setPopupConfig(prev => ({ ...prev, buttonText: e.target.value }))}
-                        placeholder="Get Started"
-                      />
-                    </div>
-
-                    {popupConfig.popupType === 'email_capture' && (
+                  {popupConfig.popupType && (
+                    <div className="space-y-4 border-t pt-6">
                       <div>
-                        <Label htmlFor="email-placeholder">Email Input Placeholder</Label>
+                        <Label htmlFor="popup-title">Popup Title</Label>
                         <Input
-                          id="email-placeholder"
-                          value={popupConfig.emailPlaceholder}
-                          onChange={(e) => setPopupConfig(prev => ({ ...prev, emailPlaceholder: e.target.value }))}
-                          placeholder="Enter your email"
+                          id="popup-title"
+                          value={popupConfig.title}
+                          onChange={(e) => setPopupConfig(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="Enter your popup title"
                         />
                       </div>
-                    )}
+                      
+                      <div>
+                        <Label htmlFor="popup-description">Description</Label>
+                        <Textarea
+                          id="popup-description"
+                          value={popupConfig.description}
+                          onChange={(e) => setPopupConfig(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Enter your popup description"
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="button-text">Button Text</Label>
+                        <Input
+                          id="button-text"
+                          value={popupConfig.buttonText}
+                          onChange={(e) => setPopupConfig(prev => ({ ...prev, buttonText: e.target.value }))}
+                          placeholder="Get Started"
+                        />
+                      </div>
 
-                    {popupConfig.popupType === 'discount_offer' && (
-                      <>
+                      {popupConfig.popupType === 'email_capture' && (
                         <div>
-                          <Label htmlFor="discount-code">Discount Code</Label>
+                          <Label htmlFor="email-placeholder">Email Input Placeholder</Label>
                           <Input
-                            id="discount-code"
-                            value={popupConfig.discountCode}
-                            onChange={(e) => setPopupConfig(prev => ({ ...prev, discountCode: e.target.value }))}
-                            placeholder="SAVE10"
+                            id="email-placeholder"
+                            value={popupConfig.emailPlaceholder}
+                            onChange={(e) => setPopupConfig(prev => ({ ...prev, emailPlaceholder: e.target.value }))}
+                            placeholder="Enter your email"
                           />
                         </div>
-                        <div>
-                          <Label htmlFor="discount-percent">Discount Percentage</Label>
-                          <Input
-                            id="discount-percent"
-                            type="number"
-                            value={popupConfig.discountPercent}
-                            onChange={(e) => setPopupConfig(prev => ({ ...prev, discountPercent: e.target.value }))}
-                            placeholder="10"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+                      )}
+
+                      {popupConfig.popupType === 'discount_offer' && (
+                        <>
+                          <div>
+                            <Label htmlFor="discount-code">Discount Code</Label>
+                            <Input
+                              id="discount-code"
+                              value={popupConfig.discountCode}
+                              onChange={(e) => setPopupConfig(prev => ({ ...prev, discountCode: e.target.value }))}
+                              placeholder="SAVE10"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="discount-percent">Discount Percentage</Label>
+                            <Input
+                              id="discount-percent"
+                              type="number"
+                              value={popupConfig.discountPercent}
+                              onChange={(e) => setPopupConfig(prev => ({ ...prev, discountPercent: e.target.value }))}
+                              placeholder="10"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="preview" className="mt-6">

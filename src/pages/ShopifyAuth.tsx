@@ -20,11 +20,23 @@ const ShopifyAuth = () => {
     } else if (shop) {
       setStatus('success');
       setMessage(`App successfully installed on ${shop}!`);
+      
+      // After successful installation, close popup and redirect parent to dashboard
+      setTimeout(() => {
+        if (window.opener) {
+          // If opened in popup, redirect parent window and close popup
+          window.opener.location.href = `https://smartpop-revenue-engine.vercel.app/dashboard?shop=${shop}`;
+          window.close();
+        } else {
+          // If not in popup, redirect current window
+          navigate('/dashboard');
+        }
+      }, 2000);
     } else {
       setStatus('error');
       setMessage('Invalid installation. Please try again from your Shopify admin.');
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
