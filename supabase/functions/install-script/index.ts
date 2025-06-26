@@ -54,12 +54,14 @@ serve(async (req) => {
     if (existingScriptsResponse.ok) {
       const existingScripts = await existingScriptsResponse.json()
       console.log('Found', existingScripts.script_tags?.length, 'existing script tags')
+      console.log('Existing script tags:', JSON.stringify(existingScripts.script_tags, null, 2))
       
       const smartPopScript = existingScripts.script_tags.find((script: any) => 
-        script.src.includes('smartpop-revenue-engine.vercel.app/popup-script.js')
+        script.src && script.src.includes('smartpop-revenue-engine')
       )
 
       if (smartPopScript) {
+        console.log('SmartPop script already exists:', smartPopScript)
         return new Response(JSON.stringify({ 
           message: 'Script tag already installed',
           script_tag: smartPopScript
@@ -67,6 +69,8 @@ serve(async (req) => {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
+      } else {
+        console.log('No SmartPop script found, proceeding to install...')
       }
     } else {
       const errorText = await existingScriptsResponse.text()

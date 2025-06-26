@@ -2,7 +2,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/popup-script.js",
+      "destination": "/popup-script.js"
+    },
+    {
+      "source": "/((?!popup-script\\.js$).*)",
       "destination": "/index.html"
     }
   ],
