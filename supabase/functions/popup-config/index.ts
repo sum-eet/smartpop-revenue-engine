@@ -51,6 +51,19 @@ serve(async (req) => {
     if (req.method === 'POST') {
       // Create new popup
       const popupData = await req.json()
+      console.log('Received popup data:', JSON.stringify(popupData, null, 2))
+      
+      // Validate required fields
+      if (!popupData.name || !popupData.triggerType || !popupData.pageTarget || !popupData.popupType) {
+        return new Response(JSON.stringify({ 
+          error: 'Missing required fields',
+          required: ['name', 'triggerType', 'pageTarget', 'popupType'],
+          received: Object.keys(popupData)
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
       
       // Get shop ID - for now use default shop, later get from authentication
       const { data: shop, error: shopError } = await supabase
@@ -59,8 +72,14 @@ serve(async (req) => {
         .eq('shop_domain', 'testingstoresumeet.myshopify.com')
         .single()
 
+      console.log('Shop query result:', { shop, shopError })
+
       if (shopError || !shop) {
-        return new Response(JSON.stringify({ error: 'Shop not found' }), {
+        console.error('Shop not found:', shopError)
+        return new Response(JSON.stringify({ 
+          error: 'Shop not found', 
+          details: shopError?.message 
+        }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
@@ -87,9 +106,17 @@ serve(async (req) => {
         .single()
 
       if (error) {
-        throw error
+        console.error('Database insert error:', error)
+        return new Response(JSON.stringify({ 
+          error: 'Failed to create popup',
+          details: error.message 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
+      console.log('Popup created successfully:', data)
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
