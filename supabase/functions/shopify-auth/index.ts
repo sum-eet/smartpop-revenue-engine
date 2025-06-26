@@ -81,6 +81,26 @@ serve(async (req) => {
     if (shop) {
       console.log('Initiating OAuth for shop:', shop)
       const clientId = Deno.env.get('SHOPIFY_CLIENT_ID')
+      const clientSecret = Deno.env.get('SHOPIFY_CLIENT_SECRET')
+      
+      // Debug environment variables
+      console.log('Environment check:', { 
+        hasClientId: !!clientId, 
+        clientIdLength: clientId?.length,
+        hasClientSecret: !!clientSecret
+      })
+      
+      // Validate required environment variables
+      if (!clientId) {
+        console.error('SHOPIFY_CLIENT_ID environment variable is not set')
+        return new Response(JSON.stringify({ 
+          error: 'Server configuration error: Missing client ID' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
       // Fix: Use the correct redirect URI that matches your route
       const redirectUri = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth`
       const scopes = 'read_orders,read_customers,write_script_tags'
