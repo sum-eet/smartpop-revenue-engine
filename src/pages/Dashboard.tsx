@@ -80,9 +80,65 @@ const Dashboard = () => {
       
       if (response.ok) {
         setPopups(popups.filter(p => p.id !== popupId));
+        // Refresh analytics after deletion
+        fetchAnalytics();
       }
     } catch (error) {
       console.error('Error deleting popup:', error);
+    }
+  };
+
+  const handleCleanupDuplicates = async () => {
+    if (!confirm('This will remove duplicate popups, keeping only the most recent version of each. Continue?')) return;
+    
+    try {
+      // Get all popups
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
+      if (!response.ok) return;
+      
+      const allPopups = await response.json();
+      
+      // Group by content signature
+      const groups = new Map();
+      allPopups.forEach(popup => {
+        const signature = `${popup.name}-${popup.trigger_type}-${popup.trigger_value}-${popup.page_target}-${popup.popup_type}`;
+        if (!groups.has(signature)) {
+          groups.set(signature, []);
+        }
+        groups.get(signature).push(popup);
+      });
+      
+      // Find duplicates to delete
+      let toDelete = [];
+      for (const [signature, group] of groups) {
+        if (group.length > 1) {
+          // Sort by created_at and keep the most recent
+          group.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          toDelete = toDelete.concat(group.slice(1)); // Remove all but the first (most recent)
+        }
+      }
+      
+      if (toDelete.length === 0) {
+        alert('No duplicates found!');
+        return;
+      }
+      
+      // Delete duplicates
+      console.log(`Deleting ${toDelete.length} duplicate popups...`);
+      for (const popup of toDelete) {
+        await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${popup.id}`, {
+          method: 'DELETE'
+        });
+      }
+      
+      // Refresh data
+      await fetchPopups();
+      await fetchAnalytics();
+      
+      alert(`Successfully removed ${toDelete.length} duplicate popups!`);
+    } catch (error) {
+      console.error('Error cleaning up duplicates:', error);
+      alert('Error cleaning up duplicates. Please try again.');
     }
   };
 
@@ -415,6 +471,20 @@ const Dashboard = () => {
                     <p className="text-sm text-gray-600">Google Analytics, Facebook Pixel</p>
                   </div>
                   <Button variant="outline">Configure</Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 border rounded-lg border-orange-200 bg-orange-50">
+                  <div>
+                    <h4 className="font-medium text-orange-800">Clean Up Duplicates</h4>
+                    <p className="text-sm text-orange-600">Remove duplicate popups to improve performance</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCleanupDuplicates}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                  >
+                    Clean Up
+                  </Button>
                 </div>
               </CardContent>
             </Card>
