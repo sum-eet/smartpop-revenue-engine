@@ -9,8 +9,14 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+      }
+    })
   }
 
   try {
@@ -50,9 +56,136 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      // Create new popup
-      const popupData = await req.json()
-      console.log('Received popup data:', JSON.stringify(popupData, null, 2))
+      const requestData = await req.json()
+      console.log('Received request data:', JSON.stringify(requestData, null, 2))
+      
+      // Check if this is a delete request
+      if (requestData.action === 'delete' && requestData.id) {
+        console.log('Processing single delete for ID:', requestData.id)
+        
+        const { error } = await supabase
+          .from('popups')
+          .delete()
+          .eq('id', requestData.id)
+
+        if (error) {
+          console.error('Delete error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to delete popup',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Also cleanup related popup_events
+        await supabase
+          .from('popup_events')
+          .delete()
+          .eq('popup_id', requestData.id)
+
+        return new Response(JSON.stringify({ 
+          message: 'Popup deleted successfully'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Check if this is a batch delete request
+      if (requestData.action === 'batchDelete' && requestData.ids) {
+        console.log('Processing batch delete for IDs:', requestData.ids)
+        
+        const { error } = await supabase
+          .from('popups')
+          .delete()
+          .in('id', requestData.ids)
+
+        if (error) {
+          console.error('Batch delete error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to delete popups',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Also cleanup related popup_events
+        await supabase
+          .from('popup_events')
+          .delete()
+          .in('popup_id', requestData.ids)
+
+        return new Response(JSON.stringify({ 
+          message: 'Popups deleted successfully',
+          deletedCount: requestData.ids.length 
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Check if this is an update request
+      if (requestData.action === 'update' && requestData.id) {
+        console.log('Processing update for ID:', requestData.id)
+        
+        // Validate required fields
+        if (!requestData.name || !requestData.triggerType || !requestData.pageTarget || !requestData.popupType) {
+          return new Response(JSON.stringify({ 
+            error: 'Missing required fields',
+            required: ['name', 'triggerType', 'pageTarget', 'popupType'],
+            received: Object.keys(requestData)
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        const { data, error } = await supabase
+          .from('popups')
+          .update({
+            name: requestData.name,
+            trigger_type: requestData.triggerType,
+            trigger_value: requestData.triggerValue,
+            page_target: requestData.pageTarget,
+            popup_type: requestData.popupType,
+            title: requestData.title,
+            description: requestData.description,
+            button_text: requestData.buttonText,
+            email_placeholder: requestData.emailPlaceholder,
+            discount_code: requestData.discountCode,
+            discount_percent: requestData.discountPercent,
+            is_active: requestData.isActive,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', requestData.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Database update error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to update popup',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        console.log('Popup updated successfully:', data)
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Regular popup creation
+      const popupData = requestData
+      console.log('Creating new popup:', JSON.stringify(popupData, null, 2))
       
       // Validate required fields
       if (!popupData.name || !popupData.triggerType || !popupData.pageTarget || !popupData.popupType) {

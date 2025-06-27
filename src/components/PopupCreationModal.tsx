@@ -181,20 +181,22 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
     
     try {
       const isEditing = !!editingPopup;
-      const url = isEditing 
-        ? `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${editingPopup.id}`
-        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config';
+      const url = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config';
       
-      const method = isEditing ? 'PUT' : 'POST';
-      const payload = {
+      const payload = isEditing ? {
+        action: 'update',
+        id: editingPopup.id,
+        ...popupConfig,
+        isActive: true
+      } : {
         ...popupConfig,
         isActive: true,
-        ...(isEditing ? {} : { createdAt: new Date().toISOString() })
+        createdAt: new Date().toISOString()
       };
 
       // Save or update popup configuration
       const response = await fetch(url, {
-        method,
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },

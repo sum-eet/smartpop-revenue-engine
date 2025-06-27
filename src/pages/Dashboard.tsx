@@ -74,8 +74,15 @@ const Dashboard = () => {
     if (!confirm('Are you sure you want to delete this popup?')) return;
     
     try {
-      const response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popupId}`, {
-        method: 'DELETE'
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          id: popupId
+        })
       });
       
       if (response.ok) {
@@ -123,12 +130,23 @@ const Dashboard = () => {
         return;
       }
       
-      // Delete duplicates
+      // Delete duplicates using batch delete
       console.log(`Deleting ${toDelete.length} duplicate popups...`);
-      for (const popup of toDelete) {
-        await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popup.id}`, {
-          method: 'DELETE'
-        });
+      const idsToDelete = toDelete.map(popup => popup.id);
+      
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'batchDelete',
+          ids: idsToDelete
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete duplicates');
       }
       
       // Refresh data
