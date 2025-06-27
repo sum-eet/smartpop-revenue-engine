@@ -36,6 +36,7 @@ type PopupType = 'email_capture' | 'discount_offer' | 'announcement' | 'survey';
 
 export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
     name: '',
     triggerType: '' as TriggerType,
@@ -138,6 +139,10 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
   };
 
   const handleSave = async () => {
+    if (isSaving) return; // Prevent duplicate submissions
+    
+    setIsSaving(true);
+    
     try {
       // Save popup configuration to database
       const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
@@ -159,6 +164,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
         // Reset form and close modal
         onClose();
         setStep(1);
+        setIsSaving(false);
         setPopupConfig({
           name: '',
           triggerType: '' as TriggerType,
@@ -177,9 +183,11 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
         window.location.reload();
       } else {
         console.error('Failed to save popup');
+        setIsSaving(false);
       }
     } catch (error) {
       console.error('Error saving popup:', error);
+      setIsSaving(false);
     }
   };
 
@@ -607,10 +615,10 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
             ) : (
               <Button
                 onClick={handleSave}
-                disabled={!isStepValid()}
+                disabled={!isStepValid() || isSaving}
                 className="bg-green-600 hover:bg-green-700"
               >
-                Create Popup
+                {isSaving ? 'Creating...' : 'Create Popup'}
               </Button>
             )}
           </div>

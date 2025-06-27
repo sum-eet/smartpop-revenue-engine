@@ -123,6 +123,40 @@ serve(async (req) => {
       })
     }
 
+    if (req.method === 'DELETE') {
+      // Delete popup
+      const url = new URL(req.url)
+      const popupId = url.pathname.split('/').pop()
+      
+      if (!popupId) {
+        return new Response(JSON.stringify({ error: 'Popup ID required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const { error } = await supabase
+        .from('popups')
+        .delete()
+        .eq('id', popupId)
+
+      if (error) {
+        console.error('Delete popup error:', error)
+        return new Response(JSON.stringify({ 
+          error: 'Failed to delete popup',
+          details: error.message 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      return new Response(JSON.stringify({ message: 'Popup deleted successfully' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

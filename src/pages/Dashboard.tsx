@@ -1,14 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye } from 'lucide-react';
+import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye, Edit, Trash2 } from 'lucide-react';
 import { PopupCreationModal } from '@/components/PopupCreationModal';
 
 const Dashboard = () => {
   const [isPopupModalOpen, setIsPopupModalOpen] = useState(false);
+  const [popups, setPopups] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [campaigns] = useState([
     {
       id: 1,
@@ -46,6 +48,63 @@ const Dashboard = () => {
   const totalConversions = campaigns.reduce((sum, campaign) => sum + campaign.conversions, 0);
   const totalViews = campaigns.reduce((sum, campaign) => sum + campaign.views, 0);
   const avgConversionRate = totalViews > 0 ? (totalConversions / totalViews) * 100 : 0;
+
+  // Fetch popups from API
+  useEffect(() => {
+    fetchPopups();
+  }, []);
+
+  const fetchPopups = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
+      if (response.ok) {
+        const data = await response.json();
+        setPopups(data);
+      }
+    } catch (error) {
+      console.error('Error fetching popups:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePopup = async (popupId: string) => {
+    if (!confirm('Are you sure you want to delete this popup?')) return;
+    
+    try {
+      const response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${popupId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setPopups(popups.filter(p => p.id !== popupId));
+      }
+    } catch (error) {
+      console.error('Error deleting popup:', error);
+    }
+  };
+
+  const getPopupTypeColor = (type: string) => {
+    switch (type) {
+      case 'email_capture': return 'bg-blue-500';
+      case 'discount_offer': return 'bg-green-500';
+      case 'announcement': return 'bg-purple-500';
+      case 'survey': return 'bg-orange-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getTriggerTypeLabel = (type: string, value: string) => {
+    switch (type) {
+      case 'time_delay': return `After ${value}s`;
+      case 'exit_intent': return 'Exit Intent';
+      case 'scroll_depth': return `${value}% Scroll`;
+      case 'page_view': return `${value} Page Views`;
+      case 'click': return 'On Click';
+      default: return type;
+    }
+  };
 
   // Check if running inside Shopify admin iframe
   const isInShopifyFrame = window !== window.top;
@@ -130,55 +189,81 @@ const Dashboard = () => {
           <TabsContent value="campaigns" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Active Campaigns</CardTitle>
+                <CardTitle>Your Popups</CardTitle>
                 <CardDescription>
                   Manage your popup campaigns and track their performance
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {campaigns.map((campaign) => (
-                    <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{campaign.name}</h3>
-                          <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'}>
-                            {campaign.status}
-                          </Badge>
-                          <Badge variant="outline">{campaign.type}</Badge>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500">Loading popups...</div>
+                  </div>
+                ) : popups.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500 mb-4">No popups created yet</div>
+                    <Button onClick={() => setIsPopupModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Popup
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {popups.map((popup: any) => (
+                      <div key={popup.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold">{popup.name}</h3>
+                            <Badge variant={popup.is_active ? 'default' : 'secondary'}>
+                              {popup.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-white ${getPopupTypeColor(popup.popup_type)}`}
+                            >
+                              {popup.popup_type?.replace('_', ' ')}
+                            </Badge>
+                            <Badge variant="secondary">
+                              {getTriggerTypeLabel(popup.trigger_type, popup.trigger_value)}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                            <div>
+                              <span className="font-medium">{popup.title || 'No title'}</span>
+                              <div>Title</div>
+                            </div>
+                            <div>
+                              <span className="font-medium">{popup.page_target?.replace('_', ' ')}</span>
+                              <div>Target</div>
+                            </div>
+                            <div>
+                              <span className="font-medium">{new Date(popup.created_at).toLocaleDateString()}</span>
+                              <div>Created</div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">{campaign.views}</span>
-                            <div>Views</div>
-                          </div>
-                          <div>
-                            <span className="font-medium">{campaign.conversions}</span>
-                            <div>Conversions</div>
-                          </div>
-                          <div>
-                            <span className="font-medium">${campaign.revenue}</span>
-                            <div>Revenue</div>
-                          </div>
-                          <div>
-                            <span className="font-medium">{campaign.conversionRate}%</span>
-                            <div>Conv. Rate</div>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            <BarChart3 className="w-4 h-4 mr-1" />
+                            Analytics
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeletePopup(popup.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
-                          <Settings className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <BarChart3 className="w-4 h-4 mr-1" />
-                          View Stats
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
