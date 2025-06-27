@@ -182,7 +182,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
     try {
       const isEditing = !!editingPopup;
       const url = isEditing 
-        ? `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${editingPopup.id}`
+        ? `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${editingPopup.id}`
         : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config';
       
       const method = isEditing ? 'PUT' : 'POST';

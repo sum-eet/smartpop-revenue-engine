@@ -125,12 +125,15 @@ serve(async (req) => {
     }
 
     if (req.method === 'PUT') {
-      // Update popup
+      // Update popup - get ID from query parameter
       const url = new URL(req.url)
-      const popupId = url.pathname.split('/').pop()
+      const popupId = url.searchParams.get('id')
+      
+      console.log('PUT request URL:', req.url)
+      console.log('Extracted popup ID:', popupId)
       
       if (!popupId) {
-        return new Response(JSON.stringify({ error: 'Popup ID required' }), {
+        return new Response(JSON.stringify({ error: 'Popup ID required in query parameter ?id=...' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
@@ -191,17 +194,15 @@ serve(async (req) => {
     }
 
     if (req.method === 'DELETE') {
-      // Delete popup
+      // Delete popup - get ID from query parameter
       const url = new URL(req.url)
-      let popupId = url.pathname.split('/').pop()
+      const popupId = url.searchParams.get('id')
       
-      // Also try to get from query parameter as fallback
-      if (!popupId || popupId === 'popup-config') {
-        popupId = url.searchParams.get('id')
-      }
+      console.log('DELETE request URL:', req.url)
+      console.log('Extracted popup ID:', popupId)
       
       if (!popupId) {
-        return new Response(JSON.stringify({ error: 'Popup ID required' }), {
+        return new Response(JSON.stringify({ error: 'Popup ID required in query parameter ?id=...' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })

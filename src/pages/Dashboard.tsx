@@ -74,7 +74,7 @@ const Dashboard = () => {
     if (!confirm('Are you sure you want to delete this popup?')) return;
     
     try {
-      const response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${popupId}`, {
+      const response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popupId}`, {
         method: 'DELETE'
       });
       
@@ -126,7 +126,7 @@ const Dashboard = () => {
       // Delete duplicates
       console.log(`Deleting ${toDelete.length} duplicate popups...`);
       for (const popup of toDelete) {
-        await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${popup.id}`, {
+        await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popup.id}`, {
           method: 'DELETE'
         });
       }
