@@ -11,47 +11,27 @@ const Dashboard = () => {
   const [isPopupModalOpen, setIsPopupModalOpen] = useState(false);
   const [popups, setPopups] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [campaigns] = useState([
-    {
-      id: 1,
-      name: 'Welcome New Visitors',
-      type: 'Email Capture',
-      status: 'active',
-      views: 2450,
-      conversions: 245,
-      revenue: 1220,
-      conversionRate: 10.0
-    },
-    {
-      id: 2,
-      name: 'Cart Abandonment Recovery',
-      type: 'Cart Recovery',
-      status: 'active',
-      views: 890,
-      conversions: 134,
-      revenue: 2680,
-      conversionRate: 15.1
-    },
-    {
-      id: 3,
-      name: 'Exit Intent Discount',
-      type: 'Exit Intent',
-      status: 'paused',
-      views: 1200,
-      conversions: 84,
-      revenue: 420,
-      conversionRate: 7.0
-    }
-  ]);
+  const [analytics, setAnalytics] = useState({
+    totalEvents: 0,
+    views: 0,
+    conversions: 0,
+    closes: 0,
+    conversionRate: 0,
+    byPopup: []
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  const totalRevenue = campaigns.reduce((sum, campaign) => sum + campaign.revenue, 0);
-  const totalConversions = campaigns.reduce((sum, campaign) => sum + campaign.conversions, 0);
-  const totalViews = campaigns.reduce((sum, campaign) => sum + campaign.views, 0);
-  const avgConversionRate = totalViews > 0 ? (totalConversions / totalViews) * 100 : 0;
+  // Calculate total revenue (mock calculation: $5 per conversion)
+  const revenuePerConversion = 5;
+  const totalRevenue = analytics.conversions * revenuePerConversion;
+  const totalConversions = analytics.conversions;
+  const totalViews = analytics.views;
+  const avgConversionRate = analytics.conversionRate;
 
-  // Fetch popups from API
+  // Fetch popups and analytics from API
   useEffect(() => {
     fetchPopups();
+    fetchAnalytics();
   }, []);
 
   const fetchPopups = async () => {
@@ -66,6 +46,21 @@ const Dashboard = () => {
       console.error('Error fetching popups:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?shop=testingstoresumeet.myshopify.com');
+      if (response.ok) {
+        const data = await response.json();
+        setAnalytics(data);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -227,7 +222,7 @@ const Dashboard = () => {
                               {getTriggerTypeLabel(popup.trigger_type, popup.trigger_value)}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                          <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
                             <div>
                               <span className="font-medium">{popup.title || 'No title'}</span>
                               <div>Title</div>
@@ -239,6 +234,19 @@ const Dashboard = () => {
                             <div>
                               <span className="font-medium">{new Date(popup.created_at).toLocaleDateString()}</span>
                               <div>Created</div>
+                            </div>
+                            <div>
+                              {(() => {
+                                const popupAnalytics = analytics.byPopup?.find(p => p.popupId === popup.id);
+                                return (
+                                  <>
+                                    <span className="font-medium">
+                                      {popupAnalytics ? `${popupAnalytics.views} views, ${popupAnalytics.conversions} conversions` : 'No data'}
+                                    </span>
+                                    <div>Analytics</div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -277,11 +285,85 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  📊 Analytics charts would go here
-                  <br />
-                  (Revenue over time, conversion funnels, device breakdown, etc.)
-                </div>
+                {analyticsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500">Loading analytics...</div>
+                  </div>
+                ) : analytics.byPopup?.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {analytics.byPopup.map((popup: any) => (
+                        <Card key={popup.popupId}>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base">{popup.popupName}</CardTitle>
+                            <CardDescription>
+                              <Badge variant="outline" className="text-xs">
+                                {popup.popupType?.replace('_', ' ')}
+                              </Badge>
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Views:</span>
+                                <span className="font-medium">{popup.views}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Conversions:</span>
+                                <span className="font-medium">{popup.conversions}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Closes:</span>
+                                <span className="font-medium">{popup.closes}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Conversion Rate:</span>
+                                <span className="font-medium">{popup.conversionRate.toFixed(1)}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Est. Revenue:</span>
+                                <span className="font-medium">${(popup.conversions * revenuePerConversion).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Overall Performance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{analytics.views}</div>
+                            <div className="text-sm text-gray-600">Total Views</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{analytics.conversions}</div>
+                            <div className="text-sm text-gray-600">Total Conversions</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-600">{analytics.closes}</div>
+                            <div className="text-sm text-gray-600">Total Closes</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-purple-600">{analytics.conversionRate.toFixed(1)}%</div>
+                            <div className="text-sm text-gray-600">Avg Conversion Rate</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500 mb-4">No analytics data available yet</div>
+                    <p className="text-sm text-gray-400">
+                      Analytics will appear here once your popups start receiving views and interactions.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

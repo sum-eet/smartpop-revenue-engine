@@ -160,7 +160,11 @@
   function showPopup(config) {
     if (shownPopups.has(config.id)) return;
     
+    console.log('SmartPop: Showing popup:', config.name);
     shownPopups.add(config.id);
+    
+    // Track popup view immediately
+    trackPopupEvent(config.id, 'view');
     
     // Create popup overlay
     const overlay = document.createElement('div');
@@ -204,7 +208,10 @@
       color: #999;
       line-height: 1;
     `;
-    closeBtn.onclick = () => overlay.remove();
+    closeBtn.onclick = () => {
+      trackPopupEvent(config.id, 'close');
+      overlay.remove();
+    };
 
     // Title
     if (config.title) {
@@ -325,6 +332,7 @@
       
       button.onclick = () => {
         handlePopupAction(config);
+        trackPopupEvent(config.id, 'close');
         overlay.remove();
       };
       
@@ -337,7 +345,10 @@
 
     // Close on overlay click
     overlay.onclick = (e) => {
-      if (e.target === overlay) overlay.remove();
+      if (e.target === overlay) {
+        trackPopupEvent(config.id, 'close');
+        overlay.remove();
+      }
     };
 
     // Track popup view
@@ -359,41 +370,63 @@
     trackPopupEvent(config.id, 'conversion');
     
     // Handle specific actions based on popup type
-    switch (config.popupType) {
+    switch (config.popup_type) {
       case 'email_capture':
         const emailInput = document.querySelector('input[type="email"]');
         if (emailInput && emailInput.value) {
-          // Here you would typically send the email to your backend
+          // Track email capture with the email
+          trackPopupEvent(config.id, 'conversion', emailInput.value);
           console.log('Email captured:', emailInput.value);
         }
         break;
       
       case 'discount_offer':
-        if (config.discountCode) {
+        if (config.discount_code) {
+          // Track discount code usage
+          trackPopupEvent(config.id, 'conversion', null, config.discount_code);
           // Copy discount code to clipboard
-          navigator.clipboard.writeText(config.discountCode).then(() => {
+          navigator.clipboard.writeText(config.discount_code).then(() => {
             alert('Discount code copied to clipboard!');
           });
         }
+        break;
+      
+      case 'survey':
+        const textarea = document.querySelector('textarea');
+        if (textarea && textarea.value) {
+          console.log('Survey response:', textarea.value);
+        }
+        break;
+        
+      case 'announcement':
+        // Just track the conversion for announcements
+        console.log('Announcement clicked');
         break;
     }
   }
 
   // Track popup events
-  async function trackPopupEvent(popupId, eventType) {
+  async function trackPopupEvent(popupId, eventType, email = null, discountCode = null) {
     try {
+      const eventData = {
+        popupId,
+        eventType,
+        shop: shopDomain,
+        timestamp: new Date().toISOString(),
+        pageUrl: window.location.href
+      };
+      
+      if (email) eventData.email = email;
+      if (discountCode) eventData.discountCode = discountCode;
+      
+      console.log('SmartPop: Tracking event:', eventType, 'for popup:', popupId);
+      
       await fetch(`${SMARTPOP_API_BASE}/popup-track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          popupId,
-          eventType,
-          shop: shopDomain,
-          timestamp: new Date().toISOString(),
-          pageUrl: window.location.href
-        })
+        body: JSON.stringify(eventData)
       });
     } catch (error) {
       console.error('SmartPop: Error tracking event:', error);
