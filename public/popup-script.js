@@ -47,9 +47,13 @@
   // Fetch popup configurations for this shop
   async function fetchPopupConfigs() {
     try {
+      console.log('SmartPop: Fetching configs for shop:', shopDomain);
       const response = await fetch(`${SMARTPOP_API_BASE}/popup-config?shop=${shopDomain}`);
+      console.log('SmartPop: API response status:', response.status);
       if (response.ok) {
         popupConfigs = await response.json();
+        console.log('SmartPop: Found', popupConfigs.length, 'popup configs');
+        console.log('SmartPop: First popup:', popupConfigs[0]);
         initializePopups();
       }
     } catch (error) {
@@ -59,13 +63,17 @@
 
   // Initialize popup monitoring
   function initializePopups() {
+    console.log('SmartPop: Initializing popups...');
     popupConfigs.forEach(config => {
-      if (!config.isActive) return;
+      console.log('SmartPop: Processing popup:', config.name, 'Active:', config.is_active);
+      if (!config.is_active) return;
       
       // Check if popup should be shown on current page
-      if (!shouldShowOnCurrentPage(config.pageTarget)) return;
+      console.log('SmartPop: Checking page target:', config.page_target);
+      if (!shouldShowOnCurrentPage(config.page_target)) return;
       
       // Set up triggers based on popup configuration
+      console.log('SmartPop: Setting up trigger for:', config.name);
       setupTrigger(config);
     });
   }
@@ -95,11 +103,15 @@
 
   // Set up trigger monitoring for popup
   function setupTrigger(config) {
-    switch (config.triggerType) {
+    console.log('SmartPop: Setup trigger type:', config.trigger_type, 'value:', config.trigger_value);
+    switch (config.trigger_type) {
       case 'time_delay':
+        const delay = parseInt(config.trigger_value) * 1000;
+        console.log('SmartPop: Setting up time delay:', delay, 'ms');
         setTimeout(() => {
+          console.log('SmartPop: Time delay triggered, showing popup');
           showPopup(config);
-        }, parseInt(config.triggerValue) * 1000);
+        }, delay);
         break;
         
       case 'scroll_depth':
@@ -389,9 +401,12 @@
   }
 
   // Initialize when DOM is ready
+  console.log('SmartPop: Script loaded, DOM state:', document.readyState);
   if (document.readyState === 'loading') {
+    console.log('SmartPop: Waiting for DOM ready...');
     document.addEventListener('DOMContentLoaded', fetchPopupConfigs);
   } else {
+    console.log('SmartPop: DOM ready, fetching configs...');
     fetchPopupConfigs();
   }
 })();
