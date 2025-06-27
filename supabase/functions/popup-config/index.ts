@@ -5,6 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 serve(async (req) => {
@@ -123,10 +124,81 @@ serve(async (req) => {
       })
     }
 
+    if (req.method === 'PUT') {
+      // Update popup
+      const url = new URL(req.url)
+      const popupId = url.pathname.split('/').pop()
+      
+      if (!popupId) {
+        return new Response(JSON.stringify({ error: 'Popup ID required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const popupData = await req.json()
+      console.log('Updating popup data:', JSON.stringify(popupData, null, 2))
+      
+      // Validate required fields
+      if (!popupData.name || !popupData.triggerType || !popupData.pageTarget || !popupData.popupType) {
+        return new Response(JSON.stringify({ 
+          error: 'Missing required fields',
+          required: ['name', 'triggerType', 'pageTarget', 'popupType'],
+          received: Object.keys(popupData)
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const { data, error } = await supabase
+        .from('popups')
+        .update({
+          name: popupData.name,
+          trigger_type: popupData.triggerType,
+          trigger_value: popupData.triggerValue,
+          page_target: popupData.pageTarget,
+          popup_type: popupData.popupType,
+          title: popupData.title,
+          description: popupData.description,
+          button_text: popupData.buttonText,
+          email_placeholder: popupData.emailPlaceholder,
+          discount_code: popupData.discountCode,
+          discount_percent: popupData.discountPercent,
+          is_active: popupData.isActive,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', popupId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Database update error:', error)
+        return new Response(JSON.stringify({ 
+          error: 'Failed to update popup',
+          details: error.message 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      console.log('Popup updated successfully:', data)
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     if (req.method === 'DELETE') {
       // Delete popup
       const url = new URL(req.url)
-      const popupId = url.pathname.split('/').pop()
+      let popupId = url.pathname.split('/').pop()
+      
+      // Also try to get from query parameter as fallback
+      if (!popupId || popupId === 'popup-config') {
+        popupId = url.searchParams.get('id')
+      }
       
       if (!popupId) {
         return new Response(JSON.stringify({ error: 'Popup ID required' }), {

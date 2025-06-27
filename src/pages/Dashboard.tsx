@@ -9,6 +9,7 @@ import { PopupCreationModal } from '@/components/PopupCreationModal';
 
 const Dashboard = () => {
   const [isPopupModalOpen, setIsPopupModalOpen] = useState(false);
+  const [editingPopup, setEditingPopup] = useState(null);
   const [popups, setPopups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState({
@@ -64,6 +65,11 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditPopup = (popup: any) => {
+    setEditingPopup(popup);
+    setIsPopupModalOpen(true);
+  };
+
   const handleDeletePopup = async (popupId: string) => {
     if (!confirm('Are you sure you want to delete this popup?')) return;
     
@@ -116,7 +122,10 @@ const Dashboard = () => {
             </div>
             <Button 
               className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => setIsPopupModalOpen(true)}
+              onClick={() => {
+                setEditingPopup(null);
+                setIsPopupModalOpen(true);
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Popup
@@ -197,7 +206,10 @@ const Dashboard = () => {
                 ) : popups.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-gray-500 mb-4">No popups created yet</div>
-                    <Button onClick={() => setIsPopupModalOpen(true)}>
+                    <Button onClick={() => {
+                      setEditingPopup(null);
+                      setIsPopupModalOpen(true);
+                    }}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Popup
                     </Button>
@@ -255,7 +267,11 @@ const Dashboard = () => {
                             <BarChart3 className="w-4 h-4 mr-1" />
                             Analytics
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditPopup(popup)}
+                          >
                             <Edit className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
@@ -409,7 +425,11 @@ const Dashboard = () => {
       {/* Popup Creation Modal */}
       <PopupCreationModal 
         isOpen={isPopupModalOpen}
-        onClose={() => setIsPopupModalOpen(false)}
+        onClose={() => {
+          setIsPopupModalOpen(false);
+          setEditingPopup(null);
+        }}
+        editingPopup={editingPopup}
       />
     </div>
   );

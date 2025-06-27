@@ -28,13 +28,14 @@ import {
 interface PopupCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingPopup?: any;
 }
 
 type TriggerType = 'time_delay' | 'click' | 'exit_intent' | 'scroll_depth' | 'page_view';
 type PageTarget = 'all_pages' | 'homepage' | 'product_pages' | 'collection_pages' | 'blog_pages' | 'cart_page' | 'checkout_page';
 type PopupType = 'email_capture' | 'discount_offer' | 'announcement' | 'survey';
 
-export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, onClose }) => {
+export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, onClose, editingPopup }) => {
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
@@ -50,6 +51,41 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
     discountCode: '',
     discountPercent: '',
   });
+
+  // Initialize form with editing popup data
+  React.useEffect(() => {
+    if (editingPopup) {
+      setPopupConfig({
+        name: editingPopup.name || '',
+        triggerType: editingPopup.trigger_type || '',
+        triggerValue: editingPopup.trigger_value || '',
+        pageTarget: editingPopup.page_target || '',
+        popupType: editingPopup.popup_type || '',
+        title: editingPopup.title || '',
+        description: editingPopup.description || '',
+        buttonText: editingPopup.button_text || '',
+        emailPlaceholder: editingPopup.email_placeholder || 'Enter your email',
+        discountCode: editingPopup.discount_code || '',
+        discountPercent: editingPopup.discount_percent || '',
+      });
+    } else {
+      // Reset to default when creating new popup
+      setPopupConfig({
+        name: '',
+        triggerType: '' as TriggerType,
+        triggerValue: '',
+        pageTarget: '' as PageTarget,
+        popupType: '' as PopupType,
+        title: '',
+        description: '',
+        buttonText: '',
+        emailPlaceholder: 'Enter your email',
+        discountCode: '',
+        discountPercent: '',
+      });
+      setStep(1);
+    }
+  }, [editingPopup, isOpen]);
 
   const triggerOptions = [
     {
@@ -144,22 +180,30 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
     setIsSaving(true);
     
     try {
-      // Save popup configuration to database
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-        method: 'POST',
+      const isEditing = !!editingPopup;
+      const url = isEditing 
+        ? `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config/${editingPopup.id}`
+        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config';
+      
+      const method = isEditing ? 'PUT' : 'POST';
+      const payload = {
+        ...popupConfig,
+        isActive: true,
+        ...(isEditing ? {} : { createdAt: new Date().toISOString() })
+      };
+
+      // Save or update popup configuration
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...popupConfig,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         const savedPopup = await response.json();
-        console.log('Popup saved successfully:', savedPopup);
+        console.log(`Popup ${isEditing ? 'updated' : 'saved'} successfully:`, savedPopup);
         
         // Reset form and close modal
         onClose();
@@ -179,14 +223,14 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
           discountPercent: '',
         });
         
-        // Refresh the page to show the new popup in the campaigns list
+        // Refresh the page to show the updated popup in the campaigns list
         window.location.reload();
       } else {
-        console.error('Failed to save popup');
+        console.error(`Failed to ${isEditing ? 'update' : 'save'} popup`);
         setIsSaving(false);
       }
     } catch (error) {
-      console.error('Error saving popup:', error);
+      console.error(`Error ${editingPopup ? 'updating' : 'saving'} popup:`, error);
       setIsSaving(false);
     }
   };
@@ -559,7 +603,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>Create New Popup</DialogTitle>
+            <DialogTitle>{editingPopup ? 'Edit Popup' : 'Create New Popup'}</DialogTitle>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="w-4 h-4" />
             </Button>
@@ -618,7 +662,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
                 disabled={!isStepValid() || isSaving}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {isSaving ? 'Creating...' : 'Create Popup'}
+                {isSaving ? (editingPopup ? 'Updating...' : 'Creating...') : (editingPopup ? 'Update Popup' : 'Create Popup')}
               </Button>
             )}
           </div>
