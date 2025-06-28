@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [editingPopup, setEditingPopup] = useState(null);
   const [popups, setPopups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [duplicateIds, setDuplicateIds] = useState([]);
   const [analytics, setAnalytics] = useState({
     totalEvents: 0,
     views: 0,
@@ -74,24 +75,40 @@ const Dashboard = () => {
     if (!confirm('Are you sure you want to delete this popup?')) return;
     
     try {
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          id: popupId
-        })
+      // Try the original DELETE method first
+      let response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popupId}`, {
+        method: 'DELETE'
       });
+      
+      // If DELETE doesn't work, try POST with action
+      if (!response.ok) {
+        console.log('DELETE method failed, trying POST with action...');
+        response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'delete',
+            id: popupId
+          })
+        });
+      }
       
       if (response.ok) {
         setPopups(popups.filter(p => p.id !== popupId));
+        // Remove from duplicates list if it was highlighted
+        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
         // Refresh analytics after deletion
         fetchAnalytics();
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to delete popup:', errorText);
+        alert('Failed to delete popup. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting popup:', error);
+      alert('Error deleting popup. Please try again.');
     }
   };
 
@@ -167,36 +184,17 @@ const Dashboard = () => {
         console.error('Delete response error:', errorText);
         console.error('Delete response status:', deleteResponse.status);
         
-        // If batch delete failed, try individual deletes as fallback
+        // If batch delete failed, highlight duplicates in the UI
         if (deleteResponse.status === 400 || errorText.includes('Missing required fields') || errorText.includes('not found')) {
-          console.log('Batch delete not supported, falling back to individual deletes...');
+          console.log('New API not deployed yet. Highlighting duplicates for manual deletion.');
+          console.log('Duplicates to delete:', idsToDelete);
           
-          for (const popupId of idsToDelete) {
-            try {
-              console.log(`Deleting individual popup: ${popupId}`);
-              const individualResponse = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  action: 'delete',
-                  id: popupId
-                })
-              });
-              
-              if (!individualResponse.ok) {
-                console.error(`Failed to delete popup ${popupId}:`, await individualResponse.text());
-              } else {
-                console.log(`Successfully deleted popup ${popupId}`);
-              }
-              
-              // Small delay between requests
-              await new Promise(resolve => setTimeout(resolve, 100));
-            } catch (error) {
-              console.error(`Error deleting popup ${popupId}:`, error);
-            }
-          }
+          // Store duplicate IDs in state for highlighting
+          setDuplicateIds(idsToDelete);
+          
+          alert(`Found ${idsToDelete.length} duplicate popups!\n\nThe duplicates are now highlighted in red in the popup list below. Please delete them manually using the trash icon.\n\nKeep the first popup (most recent) and delete the rest.`);
+          
+          return; // Exit early
         } else {
           throw new Error(`Failed to delete duplicates: ${deleteResponse.status} ${errorText}`);
         }
@@ -346,11 +344,18 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {popups.map((popup: any) => (
-                      <div key={popup.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {popups.map((popup: any) => {
+                      const isDuplicate = duplicateIds.includes(popup.id);
+                      return (
+                      <div key={popup.id} className={`flex items-center justify-between p-4 border rounded-lg ${isDuplicate ? 'bg-red-50 border-red-300' : ''}`}>
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-semibold">{popup.name}</h3>
+                            {isDuplicate && (
+                              <Badge variant="destructive" className="text-xs">
+                                DUPLICATE - DELETE ME
+                              </Badge>
+                            )}
                             <Badge variant={popup.is_active ? 'default' : 'secondary'}>
                               {popup.is_active ? 'Active' : 'Inactive'}
                             </Badge>
@@ -415,7 +420,8 @@ const Dashboard = () => {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
