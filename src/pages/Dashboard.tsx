@@ -76,40 +76,6 @@ const Dashboard = () => {
     setIsPopupModalOpen(true);
   };
 
-  const handleDeletePopup = async (popupId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this popup? This cannot be undone.')) return;
-    
-    try {
-      console.log('Deleting popup via API:', popupId);
-      
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'delete',
-          id: popupId
-        })
-      });
-      
-      if (response.ok) {
-        // Remove from current display
-        setPopups(popups.filter(p => p.id !== popupId));
-        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
-        console.log(`Popup ${popupId} deleted successfully`);
-        
-        // Refresh analytics
-        fetchAnalytics();
-      } else {
-        const errorData = await response.json();
-        console.error('Delete failed:', errorData);
-        alert('Failed to delete popup. Please try again.');
-      }
-      
-    } catch (error) {
-      console.error('Error deleting popup:', error);
-      alert('Error deleting popup. Please try again.');
-    }
-  };
 
 
 
@@ -258,26 +224,6 @@ const Dashboard = () => {
                             <Badge variant={popup.is_active ? 'default' : 'secondary'}>
                               {popup.is_active ? 'Active' : 'Inactive'}
                             </Badge>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                const newStatus = !popup.is_active;
-                                fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    action: 'update',
-                                    id: popup.id,
-                                    ...popup,
-                                    isActive: newStatus
-                                  })
-                                }).then(() => fetchPopups());
-                              }}
-                              className="text-xs"
-                            >
-                              {popup.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
                             <Badge 
                               variant="outline" 
                               className={`text-white ${getPopupTypeColor(popup.popup_type)}`}
@@ -317,9 +263,34 @@ const Dashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <BarChart3 className="w-4 h-4 mr-1" />
-                            Analytics
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              const newStatus = !popup.is_active;
+                              try {
+                                const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    action: 'toggle_active',
+                                    id: popup.id,
+                                    is_active: newStatus
+                                  })
+                                });
+                                if (response.ok) {
+                                  fetchPopups();
+                                } else {
+                                  alert('Failed to update popup status');
+                                }
+                              } catch (error) {
+                                console.error('Error toggling popup:', error);
+                                alert('Error updating popup status');
+                              }
+                            }}
+                            className={popup.is_active ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
+                          >
+                            {popup.is_active ? 'Deactivate' : 'Activate'}
                           </Button>
                           <Button 
                             variant="outline" 
@@ -332,7 +303,27 @@ const Dashboard = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleDeletePopup(popup.id)}
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to permanently delete this popup?')) return;
+                              try {
+                                const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    action: 'delete',
+                                    id: popup.id
+                                  })
+                                });
+                                if (response.ok) {
+                                  fetchPopups();
+                                } else {
+                                  alert('Failed to delete popup');
+                                }
+                              } catch (error) {
+                                console.error('Error deleting popup:', error);
+                                alert('Error deleting popup');
+                              }
+                            }}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -170,6 +170,16 @@ serve(async (req) => {
         })
       }
       
+      // If we get here with an action, it's unknown
+      if (requestData.action) {
+        return new Response(JSON.stringify({ 
+          error: 'Unknown action: ' + requestData.action
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
       // Check if this is a batch deactivate request
       if (requestData.action === 'batchDeactivate' && requestData.ids) {
         console.log('Processing batch deactivate for IDs:', requestData.ids)
