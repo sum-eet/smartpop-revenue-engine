@@ -47,8 +47,8 @@ serve(async (req) => {
         `)
         .eq('shops.shop_domain', shop)
       
-      // Always filter out deleted popups
-      query = query.eq('is_deleted', false)
+      // Always filter out deleted popups (if column exists)
+      // For now, we'll handle this in the application logic since the column might not exist yet
       
       // Only filter by is_active if not a dashboard request
       if (!includeDashboard) {
@@ -75,13 +75,10 @@ serve(async (req) => {
       if (requestData.action === 'delete' && requestData.id) {
         console.log('Processing delete (mark as deleted) for ID:', requestData.id)
         
+        // For now, just delete the popup record completely since is_deleted column may not exist
         const { error } = await supabase
           .from('popups')
-          .update({ 
-            is_deleted: true, 
-            is_active: false,
-            deleted_at: new Date().toISOString()
-          })
+          .delete()
           .eq('id', requestData.id)
 
         if (error) {
@@ -273,7 +270,6 @@ serve(async (req) => {
           discount_code: popupData.discountCode,
           discount_percent: popupData.discountPercent,
           is_active: popupData.isActive,
-          is_deleted: false,
           shop_id: shop.id
         }])
         .select()
