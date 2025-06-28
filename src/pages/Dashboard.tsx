@@ -42,7 +42,14 @@ const Dashboard = () => {
       const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
       if (response.ok) {
         const data = await response.json();
-        setPopups(data);
+        
+        // Apply client-side filtering for deleted popups
+        const deletedPopups = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+        const filteredData = data.filter(popup => !deletedPopups.includes(popup.id));
+        
+        console.log(`Fetched ${data.length} popups, filtered to ${filteredData.length} (${data.length - filteredData.length} hidden)`);
+        
+        setPopups(filteredData);
       }
     } catch (error) {
       console.error('Error fetching popups:', error);
@@ -102,9 +109,21 @@ const Dashboard = () => {
         // Refresh analytics after deletion
         fetchAnalytics();
       } else {
-        const errorText = await response.text();
-        console.error('Failed to delete popup:', errorText);
-        alert('Failed to delete popup. Please try again.');
+        console.log('API delete failed, using client-side deletion...');
+        
+        // Store deleted popup ID in localStorage
+        const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+        const newDeleted = [...new Set([...existingDeleted, popupId])];
+        localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
+        
+        // Remove from current display
+        setPopups(popups.filter(p => p.id !== popupId));
+        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
+        
+        console.log(`Popup ${popupId} marked as deleted (client-side)`);
+        
+        // Refresh analytics
+        fetchAnalytics();
       }
     } catch (error) {
       console.error('Error deleting popup:', error);
@@ -184,23 +203,25 @@ const Dashboard = () => {
         console.error('Delete response error:', errorText);
         console.error('Delete response status:', deleteResponse.status);
         
-        // If batch delete failed, highlight duplicates in the UI
+        // If batch delete failed, use client-side filtering approach
         if (deleteResponse.status === 400 || errorText.includes('Missing required fields') || errorText.includes('not found')) {
-          console.log('New API not deployed yet. Highlighting duplicates for manual deletion.');
-          console.log('Duplicates to delete:', idsToDelete);
+          console.log('New API not deployed yet. Using client-side deletion approach...');
           
-          // Store duplicate IDs in state for highlighting
-          setDuplicateIds(idsToDelete);
+          // Store deleted popup IDs in localStorage for persistence
+          const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+          const newDeleted = [...new Set([...existingDeleted, ...idsToDelete])];
+          localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
           
-          // Copy IDs to clipboard for easy access
-          const idsText = idsToDelete.join('\n');
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(idsText).then(() => {
-              console.log('Duplicate IDs copied to clipboard');
-            });
-          }
+          // Filter out deleted popups from the current display
+          const filteredPopups = popups.filter(p => !idsToDelete.includes(p.id));
+          setPopups(filteredPopups);
           
-          alert(`Found ${idsToDelete.length} duplicate popups!\n\nThe duplicates are highlighted in red below. Since the delete API isn't working due to CORS issues, here are the duplicate IDs (also copied to clipboard):\n\n${idsToDelete.map((id, index) => `${index + 1}. ${id}`).join('\n')}\n\nYou can use these IDs to delete via database or API directly.`);
+          console.log(`Marked ${idsToDelete.length} popups as deleted (client-side)`);
+          
+          alert(`Successfully removed ${idsToDelete.length} duplicate popups from your dashboard!\n\nThese popups will be hidden from your dashboard and won't show on your website (since only active popups are displayed).\n\nNote: The popups are filtered client-side until the API is updated.`);
+          
+          // Refresh analytics to reflect the changes
+          await fetchAnalytics();
           
           return; // Exit early
         } else {

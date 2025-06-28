@@ -64,9 +64,19 @@
   // Initialize popup monitoring
   function initializePopups() {
     console.log('SmartPop: Initializing popups...');
+    
+    // Get client-side deleted popups
+    const deletedPopups = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+    
     popupConfigs.forEach(config => {
       console.log('SmartPop: Processing popup:', config.name, 'Active:', config.is_active);
       if (!config.is_active) return;
+      
+      // Skip if popup is marked as deleted client-side
+      if (deletedPopups.includes(config.id)) {
+        console.log('SmartPop: Skipping deleted popup:', config.name);
+        return;
+      }
       
       // Check if popup should be shown on current page
       console.log('SmartPop: Checking page target:', config.page_target);
