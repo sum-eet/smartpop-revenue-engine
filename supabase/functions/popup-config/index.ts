@@ -71,10 +71,8 @@ serve(async (req) => {
       const requestData = await req.json()
       console.log('Received request data:', JSON.stringify(requestData, null, 2))
       
-      // Handle action-based requests first
-      if (requestData.action) {
-        // Toggle active/inactive
-        if (requestData.action === 'toggle_active' && requestData.id) {
+      // Handle simple actions first
+      if (requestData.action === 'toggle_active' && requestData.id) {
         console.log('Toggling active status for ID:', requestData.id, 'to:', requestData.is_active)
         
         const { error } = await supabase
@@ -93,16 +91,15 @@ serve(async (req) => {
           })
         }
 
-          return new Response(JSON.stringify({ 
-            message: 'Popup status updated successfully'
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Delete popup (mark as deleted)
-        if (requestData.action === 'delete' && requestData.id) {
+        return new Response(JSON.stringify({ 
+          message: 'Popup status updated successfully'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      if (requestData.action === 'delete' && requestData.id) {
         console.log('Deleting popup ID:', requestData.id)
         
         const { error } = await supabase
@@ -125,20 +122,10 @@ serve(async (req) => {
           })
         }
 
-          return new Response(JSON.stringify({ 
-            message: 'Popup deleted successfully'
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Unknown action
         return new Response(JSON.stringify({ 
-          error: 'Unknown action',
-          action: requestData.action
+          message: 'Popup deleted successfully'
         }), {
-          status: 400,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
