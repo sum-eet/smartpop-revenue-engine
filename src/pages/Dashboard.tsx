@@ -192,7 +192,15 @@ const Dashboard = () => {
           // Store duplicate IDs in state for highlighting
           setDuplicateIds(idsToDelete);
           
-          alert(`Found ${idsToDelete.length} duplicate popups!\n\nThe duplicates are now highlighted in red in the popup list below. Please delete them manually using the trash icon.\n\nKeep the first popup (most recent) and delete the rest.`);
+          // Copy IDs to clipboard for easy access
+          const idsText = idsToDelete.join('\n');
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(idsText).then(() => {
+              console.log('Duplicate IDs copied to clipboard');
+            });
+          }
+          
+          alert(`Found ${idsToDelete.length} duplicate popups!\n\nThe duplicates are highlighted in red below. Since the delete API isn't working due to CORS issues, here are the duplicate IDs (also copied to clipboard):\n\n${idsToDelete.map((id, index) => `${index + 1}. ${id}`).join('\n')}\n\nYou can use these IDs to delete via database or API directly.`);
           
           return; // Exit early
         } else {
