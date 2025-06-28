@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.popup-delete]
 verify_jwt = false
+
+[functions.popup-simple]
+verify_jwt = false
