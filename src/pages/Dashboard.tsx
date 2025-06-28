@@ -49,6 +49,8 @@ const Dashboard = () => {
         const filteredData = data.filter(popup => !deletedPopups.includes(popup.id));
         
         console.log(`Fetched ${data.length} popups, filtered to ${filteredData.length} (${data.length - filteredData.length} hidden)`);
+        console.log('Deleted popups in localStorage:', deletedPopups);
+        console.log('Popup IDs from API:', data.map(p => p.id));
         
         setPopups(filteredData);
       }
@@ -103,6 +105,37 @@ const Dashboard = () => {
       console.error('Error deleting popup:', error);
       alert('Error deleting popup. Please try again.');
     }
+  };
+
+  const handleForceCleanup = () => {
+    if (!confirm('This will immediately hide all duplicate popups except the most recent one. Continue?')) return;
+    
+    // Get all current popups
+    const allCurrentPopups = [...popups];
+    console.log('Force cleanup: Current popups:', allCurrentPopups.length);
+    
+    if (allCurrentPopups.length <= 1) {
+      alert('No duplicates found to clean up.');
+      return;
+    }
+    
+    // Sort by created_at and keep only the most recent
+    allCurrentPopups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const toKeep = allCurrentPopups[0];
+    const toDelete = allCurrentPopups.slice(1);
+    
+    console.log('Keeping popup:', toKeep.id, toKeep.created_at);
+    console.log('Deleting popups:', toDelete.map(p => p.id));
+    
+    // Store deleted popup IDs in localStorage
+    const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+    const newDeleted = [...new Set([...existingDeleted, ...toDelete.map(p => p.id)])];
+    localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
+    
+    // Update display immediately
+    setPopups([toKeep]);
+    
+    alert(`Force cleanup complete! Hidden ${toDelete.length} duplicate popups. Only the most recent popup is now visible.`);
   };
 
   const handleCleanupDuplicates = async () => {
@@ -566,13 +599,22 @@ const Dashboard = () => {
                     <h4 className="font-medium text-orange-800">Clean Up Duplicates</h4>
                     <p className="text-sm text-orange-600">Remove duplicate popups to improve performance</p>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCleanupDuplicates}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
-                  >
-                    Clean Up
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleForceCleanup}
+                      className="border-red-300 text-red-700 hover:bg-red-100"
+                    >
+                      Force Clean
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCleanupDuplicates}
+                      className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    >
+                      Smart Clean
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
