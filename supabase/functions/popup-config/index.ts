@@ -75,6 +75,26 @@ serve(async (req) => {
       if (requestData.action === 'toggle_active' && requestData.id) {
         console.log('Toggling active status for ID:', requestData.id, 'to:', requestData.is_active)
         
+        // Basic security: only allow toggling popups from the specified shop
+        const shop = requestData.shop || 'testingstoresumeet.myshopify.com'
+        
+        // First verify the popup belongs to this shop
+        const { data: popup, error: checkError } = await supabase
+          .from('popups')
+          .select('*, shops!inner(shop_domain)')
+          .eq('id', requestData.id)
+          .eq('shops.shop_domain', shop)
+          .single()
+        
+        if (checkError || !popup) {
+          return new Response(JSON.stringify({ 
+            error: 'Popup not found or access denied'
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const { error } = await supabase
           .from('popups')
           .update({ is_active: requestData.is_active })
@@ -101,6 +121,26 @@ serve(async (req) => {
       
       if (requestData.action === 'delete' && requestData.id) {
         console.log('Deleting popup ID:', requestData.id)
+        
+        // Basic security: only allow deleting popups from the specified shop
+        const shop = requestData.shop || 'testingstoresumeet.myshopify.com'
+        
+        // First verify the popup belongs to this shop
+        const { data: popup, error: checkError } = await supabase
+          .from('popups')
+          .select('*, shops!inner(shop_domain)')
+          .eq('id', requestData.id)
+          .eq('shops.shop_domain', shop)
+          .single()
+        
+        if (checkError || !popup) {
+          return new Response(JSON.stringify({ 
+            error: 'Popup not found or access denied'
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
         const { error } = await supabase
           .from('popups')
