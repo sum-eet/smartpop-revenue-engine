@@ -98,6 +98,8 @@ const Dashboard = () => {
   const handleCleanupDuplicates = async () => {
     if (!confirm('This will remove duplicate popups, keeping only the most recent version of each. Continue?')) return;
     
+    console.log('Starting cleanup process... (v2.0 - POST method)');
+    
     try {
       // Get all popups
       const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
@@ -131,23 +133,36 @@ const Dashboard = () => {
       }
       
       // Delete duplicates using batch delete
-      console.log(`Deleting ${toDelete.length} duplicate popups...`);
+      console.log(`Deleting ${toDelete.length} duplicate popups using POST batch delete...`);
+      console.log('IDs to delete:', toDelete.map(popup => popup.id));
+      
       const idsToDelete = toDelete.map(popup => popup.id);
       
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+      const deletePayload = {
+        action: 'batchDelete',
+        ids: idsToDelete
+      };
+      
+      console.log('Sending delete request with payload:', deletePayload);
+      
+      const deleteResponse = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'batchDelete',
-          ids: idsToDelete
-        })
+        body: JSON.stringify(deletePayload)
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to delete duplicates');
+      console.log('Delete response status:', deleteResponse.status);
+      
+      if (!deleteResponse.ok) {
+        const errorText = await deleteResponse.text();
+        console.error('Delete response error:', errorText);
+        throw new Error(`Failed to delete duplicates: ${deleteResponse.status} ${errorText}`);
       }
+      
+      const result = await deleteResponse.json();
+      console.log('Delete result:', result);
       
       // Refresh data
       await fetchPopups();
