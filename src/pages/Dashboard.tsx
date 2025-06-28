@@ -44,15 +44,10 @@ const Dashboard = () => {
       if (response.ok) {
         const data = await response.json();
         
-        // Apply client-side filtering for deleted popups
-        const deletedPopups = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
-        const filteredData = data.filter(popup => !deletedPopups.includes(popup.id));
-        
-        console.log(`Fetched ${data.length} popups, filtered to ${filteredData.length} (${data.length - filteredData.length} hidden)`);
-        console.log('Deleted popups in localStorage:', deletedPopups);
+        console.log(`Fetched ${data.length} popups from API`);
         console.log('Popup IDs from API:', data.map(p => p.id));
         
-        setPopups(filteredData);
+        setPopups(data);
       }
     } catch (error) {
       console.error('Error fetching popups:', error);
@@ -82,24 +77,33 @@ const Dashboard = () => {
   };
 
   const handleDeletePopup = async (popupId: string) => {
-    if (!confirm('Are you sure you want to delete this popup?')) return;
+    if (!confirm('Are you sure you want to permanently delete this popup? This cannot be undone.')) return;
     
     try {
-      console.log('Deleting popup using client-side approach...');
+      console.log('Deleting popup via API:', popupId);
       
-      // Store deleted popup ID in localStorage immediately
-      const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
-      const newDeleted = [...new Set([...existingDeleted, popupId])];
-      localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          id: popupId
+        })
+      });
       
-      // Remove from current display
-      setPopups(popups.filter(p => p.id !== popupId));
-      setDuplicateIds(duplicateIds.filter(id => id !== popupId));
-      
-      console.log(`Popup ${popupId} marked as deleted (client-side)`);
-      
-      // Refresh analytics
-      fetchAnalytics();
+      if (response.ok) {
+        // Remove from current display
+        setPopups(popups.filter(p => p.id !== popupId));
+        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
+        console.log(`Popup ${popupId} deleted successfully`);
+        
+        // Refresh analytics
+        fetchAnalytics();
+      } else {
+        const errorData = await response.json();
+        console.error('Delete failed:', errorData);
+        alert('Failed to delete popup. Please try again.');
+      }
       
     } catch (error) {
       console.error('Error deleting popup:', error);
@@ -107,55 +111,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleForceCleanup = async () => {
-    if (!confirm('This will deactivate all duplicate popups except the most recent one. This will stop them from showing on your website immediately. Continue?')) return;
-    
-    // Get all current popups
-    const allCurrentPopups = [...popups];
-    console.log('Force cleanup: Current popups:', allCurrentPopups.length);
-    
-    if (allCurrentPopups.length <= 1) {
-      alert('No duplicates found to clean up.');
-      return;
-    }
-    
-    // Sort by created_at and keep only the most recent
-    allCurrentPopups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    const toKeep = allCurrentPopups[0];
-    const toDelete = allCurrentPopups.slice(1);
-    
-    console.log('Keeping popup:', toKeep.id, toKeep.created_at);
-    console.log('Deactivating popups:', toDelete.map(p => p.id));
-    
-    try {
-      // Deactivate duplicates via API
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'batchDeactivate',
-          ids: toDelete.map(p => p.id)
-        })
-      });
-      
-      if (response.ok) {
-        // Update display immediately
-        setPopups([toKeep]);
-        alert(`Force cleanup complete! Deactivated ${toDelete.length} duplicate popups. Only the most recent popup will show on your website.`);
-      } else {
-        console.error('Failed to deactivate popups via API');
-        // Fallback to localStorage approach
-        const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
-        const newDeleted = [...new Set([...existingDeleted, ...toDelete.map(p => p.id)])];
-        localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
-        setPopups([toKeep]);
-        alert(`Force cleanup complete! Hidden ${toDelete.length} duplicate popups locally.`);
-      }
-    } catch (error) {
-      console.error('Error during force cleanup:', error);
-      alert('Error during cleanup. Please try again.');
-    }
-  };
 
   const handleCleanupDuplicates = async () => {
     if (!confirm('This will remove duplicate popups, keeping only the most recent version of each. Continue?')) return;
@@ -419,6 +374,26 @@ const Dashboard = () => {
                             <Badge variant={popup.is_active ? 'default' : 'secondary'}>
                               {popup.is_active ? 'Active' : 'Inactive'}
                             </Badge>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                const newStatus = !popup.is_active;
+                                fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    action: 'update',
+                                    id: popup.id,
+                                    ...popup,
+                                    isActive: newStatus
+                                  })
+                                }).then(() => fetchPopups());
+                              }}
+                              className="text-xs"
+                            >
+                              {popup.is_active ? 'Deactivate' : 'Activate'}
+                            </Button>
                             <Badge 
                               variant="outline" 
                               className={`text-white ${getPopupTypeColor(popup.popup_type)}`}
@@ -613,28 +588,6 @@ const Dashboard = () => {
                   <Button variant="outline">Configure</Button>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 border rounded-lg border-orange-200 bg-orange-50">
-                  <div>
-                    <h4 className="font-medium text-orange-800">Clean Up Duplicates</h4>
-                    <p className="text-sm text-orange-600">Remove duplicate popups to improve performance</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleForceCleanup}
-                      className="border-red-300 text-red-700 hover:bg-red-100"
-                    >
-                      Force Clean
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleCleanupDuplicates}
-                      className="border-orange-300 text-orange-700 hover:bg-orange-100"
-                    >
-                      Smart Clean
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>

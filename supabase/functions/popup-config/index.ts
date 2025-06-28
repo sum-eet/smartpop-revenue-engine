@@ -47,6 +47,9 @@ serve(async (req) => {
         `)
         .eq('shops.shop_domain', shop)
       
+      // Always filter out deleted popups
+      query = query.eq('is_deleted', false)
+      
       // Only filter by is_active if not a dashboard request
       if (!includeDashboard) {
         query = query.eq('is_active', true)
@@ -68,13 +71,17 @@ serve(async (req) => {
       const requestData = await req.json()
       console.log('Received request data:', JSON.stringify(requestData, null, 2))
       
-      // Check if this is a delete request
+      // Check if this is a delete request (mark as deleted)
       if (requestData.action === 'delete' && requestData.id) {
-        console.log('Processing single delete for ID:', requestData.id)
+        console.log('Processing delete (mark as deleted) for ID:', requestData.id)
         
         const { error } = await supabase
           .from('popups')
-          .delete()
+          .update({ 
+            is_deleted: true, 
+            is_active: false,
+            deleted_at: new Date().toISOString()
+          })
           .eq('id', requestData.id)
 
         if (error) {
@@ -87,12 +94,6 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
-
-        // Also cleanup related popup_events
-        await supabase
-          .from('popup_events')
-          .delete()
-          .eq('popup_id', requestData.id)
 
         return new Response(JSON.stringify({ 
           message: 'Popup deleted successfully'
@@ -272,6 +273,7 @@ serve(async (req) => {
           discount_code: popupData.discountCode,
           discount_percent: popupData.discountPercent,
           is_active: popupData.isActive,
+          is_deleted: false,
           shop_id: shop.id
         }])
         .select()
