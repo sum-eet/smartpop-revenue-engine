@@ -71,9 +71,37 @@ serve(async (req) => {
       const requestData = await req.json()
       console.log('Received request data:', JSON.stringify(requestData, null, 2))
       
-      // Check if this is a delete request (mark as deleted)
+      // Toggle active/inactive
+      if (requestData.action === 'toggle_active' && requestData.id) {
+        console.log('Toggling active status for ID:', requestData.id, 'to:', requestData.is_active)
+        
+        const { error } = await supabase
+          .from('popups')
+          .update({ is_active: requestData.is_active })
+          .eq('id', requestData.id)
+
+        if (error) {
+          console.error('Toggle active error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to toggle popup status',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        return new Response(JSON.stringify({ 
+          message: 'Popup status updated successfully'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Delete popup (mark as deleted)
       if (requestData.action === 'delete' && requestData.id) {
-        console.log('Processing delete (mark as deleted) for ID:', requestData.id)
+        console.log('Deleting popup ID:', requestData.id)
         
         const { error } = await supabase
           .from('popups')
