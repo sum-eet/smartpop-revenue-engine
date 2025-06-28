@@ -252,11 +252,11 @@
     const contentDiv = document.createElement('div');
     contentDiv.style.cssText = 'margin-bottom: 20px;';
 
-    switch (config.popupType) {
+    switch (config.popup_type) {
       case 'email_capture':
         const emailInput = document.createElement('input');
         emailInput.type = 'email';
-        emailInput.placeholder = config.emailPlaceholder || 'Enter your email';
+        emailInput.placeholder = config.email_placeholder || 'Enter your email';
         emailInput.style.cssText = `
           width: 100%;
           padding: 12px;
@@ -269,7 +269,7 @@
         break;
 
       case 'discount_offer':
-        if (config.discountCode) {
+        if (config.discount_code) {
           const codeDiv = document.createElement('div');
           codeDiv.style.cssText = `
             background: #f0fdf4;
@@ -280,7 +280,7 @@
           `;
           
           const codeText = document.createElement('div');
-          codeText.textContent = config.discountCode;
+          codeText.textContent = config.discount_code;
           codeText.style.cssText = `
             font-family: monospace;
             font-size: 18px;
@@ -288,9 +288,9 @@
             color: #166534;
           `;
           
-          if (config.discountPercent) {
+          if (config.discount_percent) {
             const percentText = document.createElement('div');
-            percentText.textContent = `${config.discountPercent}% OFF`;
+            percentText.textContent = `${config.discount_percent}% OFF`;
             percentText.style.cssText = `
               color: #16a34a;
               font-size: 12px;
@@ -324,13 +324,13 @@
     popup.appendChild(contentDiv);
 
     // Action button
-    if (config.buttonText) {
+    if (config.button_text) {
       const button = document.createElement('button');
-      button.textContent = config.buttonText;
+      button.textContent = config.button_text;
       button.style.cssText = `
         width: 100%;
         padding: 12px 24px;
-        background: ${getButtonColor(config.popupType)};
+        background: ${getButtonColor(config.popup_type)};
         color: white;
         border: none;
         border-radius: 4px;
@@ -365,8 +365,8 @@
     trackPopupEvent(config.id, 'view');
   }
 
-  function getButtonColor(popupType) {
-    switch (popupType) {
+  function getButtonColor(popup_type) {
+    switch (popup_type) {
       case 'email_capture': return '#2563eb';
       case 'discount_offer': return '#16a34a';
       case 'announcement': return '#9333ea';

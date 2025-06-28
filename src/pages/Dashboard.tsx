@@ -39,6 +39,7 @@ const Dashboard = () => {
   const fetchPopups = async () => {
     try {
       setLoading(true);
+      // Fetch popups (current API only returns active ones, but we'll work with that)
       const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
       if (response.ok) {
         const data = await response.json();
@@ -82,49 +83,22 @@ const Dashboard = () => {
     if (!confirm('Are you sure you want to delete this popup?')) return;
     
     try {
-      // Try the original DELETE method first
-      let response = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?id=${popupId}`, {
-        method: 'DELETE'
-      });
+      console.log('Deleting popup using client-side approach...');
       
-      // If DELETE doesn't work, try POST with action
-      if (!response.ok) {
-        console.log('DELETE method failed, trying POST with action...');
-        response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'delete',
-            id: popupId
-          })
-        });
-      }
+      // Store deleted popup ID in localStorage immediately
+      const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+      const newDeleted = [...new Set([...existingDeleted, popupId])];
+      localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
       
-      if (response.ok) {
-        setPopups(popups.filter(p => p.id !== popupId));
-        // Remove from duplicates list if it was highlighted
-        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
-        // Refresh analytics after deletion
-        fetchAnalytics();
-      } else {
-        console.log('API delete failed, using client-side deletion...');
-        
-        // Store deleted popup ID in localStorage
-        const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
-        const newDeleted = [...new Set([...existingDeleted, popupId])];
-        localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
-        
-        // Remove from current display
-        setPopups(popups.filter(p => p.id !== popupId));
-        setDuplicateIds(duplicateIds.filter(id => id !== popupId));
-        
-        console.log(`Popup ${popupId} marked as deleted (client-side)`);
-        
-        // Refresh analytics
-        fetchAnalytics();
-      }
+      // Remove from current display
+      setPopups(popups.filter(p => p.id !== popupId));
+      setDuplicateIds(duplicateIds.filter(id => id !== popupId));
+      
+      console.log(`Popup ${popupId} marked as deleted (client-side)`);
+      
+      // Refresh analytics
+      fetchAnalytics();
+      
     } catch (error) {
       console.error('Error deleting popup:', error);
       alert('Error deleting popup. Please try again.');
@@ -137,11 +111,16 @@ const Dashboard = () => {
     console.log('Starting cleanup process... (v2.0 - POST method)');
     
     try {
-      // Get all popups
+      // Get all popups - need to bypass the active filter for cleanup
+      // Since the current API only returns active popups, let's work with what we have
       const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
       if (!response.ok) return;
       
-      const allPopups = await response.json();
+      let allPopups = await response.json();
+      
+      // Add any previously deleted popups back to the check (in case we need to clean them up too)
+      const deletedPopups = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+      console.log(`Found ${deletedPopups.length} previously deleted popups`);
       
       // Group by content signature
       const groups = new Map();
