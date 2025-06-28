@@ -39,8 +39,8 @@ const Dashboard = () => {
   const fetchPopups = async () => {
     try {
       setLoading(true);
-      // Fetch popups (current API only returns active ones, but we'll work with that)
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com');
+      // Fetch all popups including inactive ones for dashboard
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com&dashboard=true');
       if (response.ok) {
         const data = await response.json();
         
@@ -107,8 +107,8 @@ const Dashboard = () => {
     }
   };
 
-  const handleForceCleanup = () => {
-    if (!confirm('This will immediately hide all duplicate popups except the most recent one. Continue?')) return;
+  const handleForceCleanup = async () => {
+    if (!confirm('This will deactivate all duplicate popups except the most recent one. This will stop them from showing on your website immediately. Continue?')) return;
     
     // Get all current popups
     const allCurrentPopups = [...popups];
@@ -125,17 +125,36 @@ const Dashboard = () => {
     const toDelete = allCurrentPopups.slice(1);
     
     console.log('Keeping popup:', toKeep.id, toKeep.created_at);
-    console.log('Deleting popups:', toDelete.map(p => p.id));
+    console.log('Deactivating popups:', toDelete.map(p => p.id));
     
-    // Store deleted popup IDs in localStorage
-    const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
-    const newDeleted = [...new Set([...existingDeleted, ...toDelete.map(p => p.id)])];
-    localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
-    
-    // Update display immediately
-    setPopups([toKeep]);
-    
-    alert(`Force cleanup complete! Hidden ${toDelete.length} duplicate popups. Only the most recent popup is now visible.`);
+    try {
+      // Deactivate duplicates via API
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'batchDeactivate',
+          ids: toDelete.map(p => p.id)
+        })
+      });
+      
+      if (response.ok) {
+        // Update display immediately
+        setPopups([toKeep]);
+        alert(`Force cleanup complete! Deactivated ${toDelete.length} duplicate popups. Only the most recent popup will show on your website.`);
+      } else {
+        console.error('Failed to deactivate popups via API');
+        // Fallback to localStorage approach
+        const existingDeleted = JSON.parse(localStorage.getItem('smartpop_deleted_popups') || '[]');
+        const newDeleted = [...new Set([...existingDeleted, ...toDelete.map(p => p.id)])];
+        localStorage.setItem('smartpop_deleted_popups', JSON.stringify(newDeleted));
+        setPopups([toKeep]);
+        alert(`Force cleanup complete! Hidden ${toDelete.length} duplicate popups locally.`);
+      }
+    } catch (error) {
+      console.error('Error during force cleanup:', error);
+      alert('Error during cleanup. Please try again.');
+    }
   };
 
   const handleCleanupDuplicates = async () => {

@@ -36,14 +36,23 @@ serve(async (req) => {
         })
       }
       
-      const { data: popups, error } = await supabase
+      // Check if this is a dashboard request (includes inactive popups)
+      const includeDashboard = url.searchParams.get('dashboard') === 'true'
+      
+      let query = supabase
         .from('popups')
         .select(`
           *,
           shops!inner(shop_domain)
         `)
         .eq('shops.shop_domain', shop)
-        .eq('is_active', true)
+      
+      // Only filter by is_active if not a dashboard request
+      if (!includeDashboard) {
+        query = query.eq('is_active', true)
+      }
+      
+      const { data: popups, error } = await query
       
       if (error) {
         throw error
@@ -87,6 +96,35 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ 
           message: 'Popup deleted successfully'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Check if this is a batch deactivate request
+      if (requestData.action === 'batchDeactivate' && requestData.ids) {
+        console.log('Processing batch deactivate for IDs:', requestData.ids)
+        
+        const { error } = await supabase
+          .from('popups')
+          .update({ is_active: false })
+          .in('id', requestData.ids)
+
+        if (error) {
+          console.error('Batch deactivate error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to deactivate popups',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        return new Response(JSON.stringify({ 
+          message: 'Popups deactivated successfully',
+          deactivatedCount: requestData.ids.length 
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
