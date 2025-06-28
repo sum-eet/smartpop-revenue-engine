@@ -109,6 +109,8 @@ const Dashboard = () => {
       
       // Group by content signature
       const groups = new Map();
+      console.log(`Processing ${allPopups.length} total popups`);
+      
       allPopups.forEach(popup => {
         const signature = `${popup.name}-${popup.trigger_type}-${popup.trigger_value}-${popup.page_target}-${popup.popup_type}`;
         if (!groups.has(signature)) {
@@ -116,6 +118,11 @@ const Dashboard = () => {
         }
         groups.get(signature).push(popup);
       });
+      
+      console.log(`Found ${groups.size} unique popup groups`);
+      for (const [signature, group] of groups) {
+        console.log(`Group "${signature}": ${group.length} popups`);
+      }
       
       // Find duplicates to delete
       let toDelete = [];
@@ -158,11 +165,45 @@ const Dashboard = () => {
       if (!deleteResponse.ok) {
         const errorText = await deleteResponse.text();
         console.error('Delete response error:', errorText);
-        throw new Error(`Failed to delete duplicates: ${deleteResponse.status} ${errorText}`);
+        console.error('Delete response status:', deleteResponse.status);
+        
+        // If batch delete failed, try individual deletes as fallback
+        if (deleteResponse.status === 400 || errorText.includes('Missing required fields') || errorText.includes('not found')) {
+          console.log('Batch delete not supported, falling back to individual deletes...');
+          
+          for (const popupId of idsToDelete) {
+            try {
+              console.log(`Deleting individual popup: ${popupId}`);
+              const individualResponse = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  action: 'delete',
+                  id: popupId
+                })
+              });
+              
+              if (!individualResponse.ok) {
+                console.error(`Failed to delete popup ${popupId}:`, await individualResponse.text());
+              } else {
+                console.log(`Successfully deleted popup ${popupId}`);
+              }
+              
+              // Small delay between requests
+              await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error) {
+              console.error(`Error deleting popup ${popupId}:`, error);
+            }
+          }
+        } else {
+          throw new Error(`Failed to delete duplicates: ${deleteResponse.status} ${errorText}`);
+        }
+      } else {
+        const result = await deleteResponse.json();
+        console.log('Delete result:', result);
       }
-      
-      const result = await deleteResponse.json();
-      console.log('Delete result:', result);
       
       // Refresh data
       await fetchPopups();
