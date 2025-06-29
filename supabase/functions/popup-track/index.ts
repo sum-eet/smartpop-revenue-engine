@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -9,6 +8,11 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  const timestamp = new Date().toISOString()
+  console.log(`[${timestamp}] === POPUP TRACK API CALLED ===`)
+  console.log(`[${timestamp}] Method:`, req.method)
+  console.log(`[${timestamp}] URL:`, req.url)
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -19,75 +23,76 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl!, supabaseKey!)
 
     if (req.method === 'POST') {
-      // Track popup event
+      // Track popup event (no auth required for public tracking)
       const eventData = await req.json()
-      console.log('Received event data:', JSON.stringify(eventData, null, 2))
+      console.log(`[${timestamp}] Track event request:`, JSON.stringify(eventData, null, 2))
       
       // Validate required fields
-      if (!eventData.popupId || !eventData.eventType || !eventData.shop) {
+      if (!eventData.popupId || !eventData.eventType) {
+        console.log(`[${timestamp}] ERROR: Missing required fields`)
         return new Response(JSON.stringify({ 
           error: 'Missing required fields',
-          required: ['popupId', 'eventType', 'shop'],
-          received: Object.keys(eventData)
+          required: ['popupId', 'eventType'],
+          received: Object.keys(eventData),
+          timestamp
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+
+      console.log(`[${timestamp}] Tracking event:`, eventData.eventType, 'for popup:', eventData.popupId)
 
       const { data, error } = await supabase
         .from('popup_events')
         .insert([{
           popup_id: eventData.popupId,
           event_type: eventData.eventType,
-          shop_domain: eventData.shop,
-          page_url: eventData.pageUrl,
+          shop_domain: eventData.shop || 'testingstoresumeet.myshopify.com',
+          page_url: eventData.pageUrl || null,
           email: eventData.email || null,
           discount_code_used: eventData.discountCode || null,
           visitor_ip: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || null,
           user_agent: req.headers.get('User-Agent') || null,
-          created_at: eventData.timestamp || new Date().toISOString()
+          created_at: timestamp
         }])
         .select()
-        .single()
 
       if (error) {
-        console.error('Database insert error:', error)
+        console.error(`[${timestamp}] Database insert error:`, error)
         return new Response(JSON.stringify({ 
           error: 'Failed to track event',
-          details: error.message 
+          details: error.message,
+          timestamp
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      console.log('Event tracked successfully:', data)
-      return new Response(JSON.stringify({ success: true, data }), {
+      console.log(`[${timestamp}] Event tracked successfully:`, data?.[0]?.id)
+      return new Response(JSON.stringify({ 
+        success: true, 
+        event: data?.[0],
+        timestamp
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     if (req.method === 'GET') {
-      // Get analytics for a specific popup or shop
+      // Get analytics (no auth required for basic analytics)
       const url = new URL(req.url)
       const popupId = url.searchParams.get('popupId')
-      const shop = url.searchParams.get('shop')
+      const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
       
-      if (!shop) {
-        return new Response(JSON.stringify({ error: 'Shop parameter required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
+      console.log(`[${timestamp}] Analytics request for shop:`, shop, 'popup:', popupId)
 
+      // Build query
       let query = supabase
         .from('popup_events')
-        .select(`
-          *,
-          popups!inner(name, popup_type)
-        `)
+        .select('*')
         .eq('shop_domain', shop)
 
       if (popupId) {
@@ -99,8 +104,18 @@ serve(async (req) => {
         .limit(1000)
       
       if (error) {
-        throw error
+        console.error(`[${timestamp}] Analytics query error:`, error)
+        return new Response(JSON.stringify({ 
+          error: 'Failed to fetch analytics',
+          details: error.message,
+          timestamp
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
+
+      console.log(`[${timestamp}] Found ${events?.length || 0} events`)
 
       // Aggregate analytics data
       const analytics = {
@@ -109,7 +124,7 @@ serve(async (req) => {
         conversions: events?.filter(e => e.event_type === 'conversion').length || 0,
         closes: events?.filter(e => e.event_type === 'close').length || 0,
         conversionRate: 0,
-        events: events || []
+        timestamp
       }
 
       if (analytics.views > 0) {
@@ -117,15 +132,23 @@ serve(async (req) => {
       }
 
       // Group by popup if no specific popup requested
-      if (!popupId) {
+      if (!popupId && events?.length > 0) {
         const popupAnalytics = {}
-        events?.forEach(event => {
+        
+        for (const event of events) {
           const id = event.popup_id
           if (!popupAnalytics[id]) {
+            // Get popup info
+            const { data: popup } = await supabase
+              .from('popups')
+              .select('name, popup_type')
+              .eq('id', id)
+              .single()
+            
             popupAnalytics[id] = {
               popupId: id,
-              popupName: event.popups?.name || 'Unknown',
-              popupType: event.popups?.popup_type || 'unknown',
+              popupName: popup?.name || 'Unknown',
+              popupType: popup?.popup_type || 'unknown',
               views: 0,
               conversions: 0,
               closes: 0,
@@ -136,7 +159,7 @@ serve(async (req) => {
           if (event.event_type === 'view') popupAnalytics[id].views++
           if (event.event_type === 'conversion') popupAnalytics[id].conversions++
           if (event.event_type === 'close') popupAnalytics[id].closes++
-        })
+        }
 
         // Calculate conversion rates
         Object.values(popupAnalytics).forEach((popup: any) => {
@@ -147,6 +170,12 @@ serve(async (req) => {
 
         analytics.byPopup = Object.values(popupAnalytics)
       }
+
+      console.log(`[${timestamp}] Analytics summary:`, {
+        views: analytics.views,
+        conversions: analytics.conversions,
+        rate: analytics.conversionRate
+      })
       
       return new Response(JSON.stringify(analytics), {
         status: 200,
@@ -154,14 +183,21 @@ serve(async (req) => {
       })
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed',
+      timestamp
+    }), {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
     
   } catch (error) {
-    console.error('Popup tracking error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error(`[${timestamp}] FUNCTION ERROR:`, error)
+    return new Response(JSON.stringify({ 
+      error: 'Function error',
+      details: error.message,
+      timestamp
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
