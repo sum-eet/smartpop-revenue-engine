@@ -1,468 +1,381 @@
 
 (function() {
   'use strict';
+
+  // Configuration
+  const API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
+  const SHOP_DOMAIN = window.Shopify ? window.Shopify.shop : window.location.hostname;
   
-  // SmartPop Popup Runtime Script
-  const SMARTPOP_API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
-  
-  // Get shop domain from current URL
-  const shopDomain = window.location.hostname;
-  
-  // Global state
-  let popupConfigs = [];
-  let shownPopups = new Set();
-  let sessionData = {
-    pageViews: parseInt(localStorage.getItem('smartpop_page_views') || '0'),
-    timeOnPage: 0,
-    scrollDepth: 0
+  console.log('SmartPop SDK initialized for shop:', SHOP_DOMAIN);
+
+  // Visitor behavior tracking
+  let behavior = {
+    isFirstVisit: !localStorage.getItem('smartpop_visited'),
+    timeOnSite: 0,
+    scrollDepth: 0,
+    cartValue: 0,
+    hasExitIntent: false
   };
 
-  // Update page views
-  sessionData.pageViews++;
-  localStorage.setItem('smartpop_page_views', sessionData.pageViews.toString());
+  let activePopups = new Set();
+  let shownPopups = new Set();
+  let popupConfigs = [];
 
-  // Track time on page
-  let startTime = Date.now();
+  // Mark as visited
+  localStorage.setItem('smartpop_visited', '1');
+
+  // Time tracker
   setInterval(() => {
-    sessionData.timeOnPage = Math.floor((Date.now() - startTime) / 1000);
+    behavior.timeOnSite += 1;
+    checkTriggers();
   }, 1000);
 
-  // Track scroll depth with proper throttling
+  // Scroll tracker with throttling
   let scrollTicking = false;
-  function updateScrollDepth() {
+  function handleScroll() {
     if (!scrollTicking) {
       requestAnimationFrame(() => {
-        const scrolled = window.scrollY;
-        const maxHeight = document.documentElement.scrollHeight - window.innerHeight;
-        const scrollPercent = maxHeight > 0 ? Math.round((scrolled / maxHeight) * 100) : 0;
-        const validScrollPercent = Math.min(100, Math.max(0, scrollPercent));
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const scrolled = scrollHeight > 0 ? Math.round((scrollTop / scrollHeight) * 100) : 0;
+        const validScrolled = Math.min(100, Math.max(0, scrolled));
         
-        if (validScrollPercent > sessionData.scrollDepth) {
-          sessionData.scrollDepth = validScrollPercent;
-          console.log('SmartPop: Scroll depth updated:', validScrollPercent + '%');
-          
-          // Check for scroll-triggered popups
-          checkScrollTriggers(validScrollPercent);
+        if (validScrolled > behavior.scrollDepth) {
+          behavior.scrollDepth = validScrolled;
+          console.log('Scroll depth:', validScrolled + '%');
+          checkTriggers();
         }
         scrollTicking = false;
       });
       scrollTicking = true;
     }
   }
-  
-  window.addEventListener('scroll', updateScrollDepth, { passive: true });
 
-  // Track exit intent
-  let exitIntentTriggered = false;
+  // Exit intent tracker (desktop only)
   function handleMouseLeave(e) {
-    if (!exitIntentTriggered && e.clientY <= 0) {
-      exitIntentTriggered = true;
-      checkTriggers('exit_intent');
+    if (e.clientY <= 0 && !behavior.hasExitIntent) {
+      behavior.hasExitIntent = true;
+      console.log('Exit intent detected');
+      checkTriggers();
     }
   }
+
+  // Add event listeners
+  window.addEventListener('scroll', handleScroll, { passive: true });
   document.addEventListener('mouseleave', handleMouseLeave);
 
-  // Fetch popup configurations for this shop
-  async function fetchPopupConfigs() {
+  // Load popup configurations
+  async function loadPopupConfigs() {
     try {
-      console.log('SmartPop: Fetching configs for shop:', shopDomain);
-      const response = await fetch(`${SMARTPOP_API_BASE}/popup-config?shop=${shopDomain}`);
-      console.log('SmartPop: API response status:', response.status);
+      const response = await fetch(`${API_BASE}/popup-config?shop=${encodeURIComponent(SHOP_DOMAIN)}`);
+      const data = await response.json();
       
-      if (response.ok) {
-        popupConfigs = await response.json();
-        console.log('SmartPop: Found', popupConfigs.length, 'popup configs');
-        
-        // Filter and log scroll depth configs
-        const scrollConfigs = popupConfigs.filter(config => config.trigger_type === 'scroll_depth');
-        console.log('SmartPop: Scroll depth configs:', scrollConfigs);
-        
-        initializePopups();
-      }
+      popupConfigs = data.filter(popup => popup.is_active && !popup.is_deleted).map(popup => ({
+        id: popup.id,
+        type: popup.trigger_type,
+        title: popup.title || 'Special Offer',
+        description: popup.description || 'Don\'t miss out!',
+        discountPercent: popup.discount_percent ? parseInt(popup.discount_percent) : null,
+        discountCode: popup.discount_code,
+        buttonText: popup.button_text || 'Get Offer',
+        emailPlaceholder: popup.email_placeholder || 'Enter your email',
+        triggers: {
+          scrollDepth: popup.trigger_type === 'scroll_depth' ? parseInt(popup.trigger_value || '50') : null,
+          timeOnSite: popup.trigger_type === 'time_delay' ? parseInt(popup.trigger_value || '10') : null,
+          isFirstVisit: popup.trigger_type === 'page_view',
+          hasExitIntent: popup.trigger_type === 'exit_intent'
+        }
+      }));
+      
+      console.log('Loaded popup configs:', popupConfigs);
+      checkTriggers();
     } catch (error) {
-      console.error('SmartPop: Error fetching popup configs:', error);
+      console.error('Failed to load popup configs:', error);
     }
   }
 
-  // Initialize popup monitoring
-  function initializePopups() {
-    console.log('SmartPop: Initializing popups...');
-    
-    popupConfigs.forEach(config => {
-      console.log('SmartPop: Processing popup:', config.name, 'Type:', config.trigger_type, 'Value:', config.trigger_value, 'Active:', config.is_active);
-      
-      if (!config.is_active) return;
-      
-      // Check if popup should be shown on current page
-      if (!shouldShowOnCurrentPage(config.page_target)) return;
-      
-      // Set up triggers based on popup configuration
-      setupTrigger(config);
-    });
-  }
+  // Check if any popup should be triggered
+  function checkTriggers() {
+    if (activePopups.size > 0) return; // Don't show multiple popups
 
-  // Check if popup should show on current page
-  function shouldShowOnCurrentPage(pageTarget) {
-    const currentPath = window.location.pathname;
-    
-    switch (pageTarget) {
-      case 'homepage':
-        return currentPath === '/' || currentPath === '';
-      case 'product_pages':
-        return currentPath.includes('/products/');
-      case 'collection_pages':
-        return currentPath.includes('/collections/');
-      case 'blog_pages':
-        return currentPath.includes('/blogs/');
-      case 'cart_page':
-        return currentPath.includes('/cart');
-      case 'checkout_page':
-        return currentPath.includes('/checkout');
-      case 'all_pages':
-      default:
+    const eligiblePopup = popupConfigs.find(popup => {
+      if (shownPopups.has(popup.id)) return false;
+
+      const triggers = popup.triggers;
+      
+      // Check scroll depth trigger
+      if (triggers.scrollDepth && behavior.scrollDepth >= triggers.scrollDepth) {
+        console.log(`Scroll trigger met: ${behavior.scrollDepth}% >= ${triggers.scrollDepth}%`);
         return true;
-    }
-  }
-
-  // Set up trigger monitoring for popup
-  function setupTrigger(config) {
-    console.log('SmartPop: Setup trigger type:', config.trigger_type, 'value:', config.trigger_value);
-    
-    switch (config.trigger_type) {
-      case 'time_delay':
-        const delay = parseInt(config.trigger_value) * 1000;
-        console.log('SmartPop: Setting up time delay:', delay, 'ms');
-        setTimeout(() => {
-          console.log('SmartPop: Time delay triggered, showing popup');
-          showPopup(config);
-        }, delay);
-        break;
-        
-      case 'scroll_depth':
-        // Scroll depth is handled by the global scroll listener
-        const targetDepth = parseInt(config.trigger_value);
-        console.log('SmartPop: Scroll depth trigger set for:', targetDepth + '%');
-        // Store the config for later use by checkScrollTriggers
-        break;
-        
-      case 'page_view':
-        if (sessionData.pageViews >= parseInt(config.trigger_value)) {
-          showPopup(config);
-        }
-        break;
-        
-      case 'exit_intent':
-        // Exit intent is handled globally
-        console.log('SmartPop: Exit intent trigger set');
-        break;
-    }
-  }
-
-  // Check scroll triggers
-  function checkScrollTriggers(currentScrollDepth) {
-    popupConfigs.forEach(config => {
-      if (config.trigger_type === 'scroll_depth' && 
-          config.is_active && 
-          !shownPopups.has(config.id)) {
-        
-        const targetDepth = parseInt(config.trigger_value);
-        
-        if (currentScrollDepth >= targetDepth && shouldShowOnCurrentPage(config.page_target)) {
-          console.log(`SmartPop: Scroll trigger activated! ${currentScrollDepth}% >= ${targetDepth}%`);
-          showPopup(config);
-        }
       }
-    });
-  }
-
-  // Check triggers (used for exit intent)
-  function checkTriggers(triggerType) {
-    popupConfigs.forEach(config => {
-      if (config.trigger_type === triggerType && !shownPopups.has(config.id)) {
-        if (shouldShowOnCurrentPage(config.page_target)) {
-          showPopup(config);
-        }
+      
+      // Check time trigger
+      if (triggers.timeOnSite && behavior.timeOnSite >= triggers.timeOnSite) {
+        console.log(`Time trigger met: ${behavior.timeOnSite}s >= ${triggers.timeOnSite}s`);
+        return true;
       }
+      
+      // Check first visit trigger
+      if (triggers.isFirstVisit && behavior.isFirstVisit) {
+        console.log('First visit trigger met');
+        return true;
+      }
+      
+      // Check exit intent trigger
+      if (triggers.hasExitIntent && behavior.hasExitIntent) {
+        console.log('Exit intent trigger met');
+        return true;
+      }
+      
+      return false;
     });
+
+    if (eligiblePopup) {
+      showPopup(eligiblePopup);
+    }
   }
 
   // Show popup
   function showPopup(config) {
-    if (shownPopups.has(config.id)) return;
-    
-    console.log('SmartPop: Showing popup:', config.name);
+    if (activePopups.has(config.id) || shownPopups.has(config.id)) return;
+
+    console.log('Showing popup:', config);
+    activePopups.add(config.id);
     shownPopups.add(config.id);
-    
-    // Track popup view immediately
-    trackPopupEvent(config.id, 'view');
-    
-    // Create popup overlay
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    `;
 
-    // Create popup content
-    const popup = document.createElement('div');
-    popup.style.cssText = `
-      background: white;
-      border-radius: 8px;
-      padding: 24px;
-      max-width: 400px;
-      width: 90%;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      position: relative;
-      text-align: center;
-    `;
+    // Track view event
+    trackEvent(config.id, 'view');
 
-    // Close button
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '×';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 8px;
-      right: 12px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: #999;
-      line-height: 1;
-    `;
-    closeBtn.onclick = () => {
-      trackPopupEvent(config.id, 'close');
-      overlay.remove();
-    };
-
-    // Title
-    if (config.title) {
-      const title = document.createElement('h3');
-      title.textContent = config.title;
-      title.style.cssText = `
-        margin: 0 0 16px 0;
-        font-size: 20px;
-        font-weight: bold;
-        color: #111;
-      `;
-      popup.appendChild(title);
-    }
-
-    // Description
-    if (config.description) {
-      const desc = document.createElement('p');
-      desc.textContent = config.description;
-      desc.style.cssText = `
-        margin: 0 0 20px 0;
-        color: #666;
-        line-height: 1.5;
-      `;
-      popup.appendChild(desc);
-    }
-
-    // Content based on popup type
-    const contentDiv = document.createElement('div');
-    contentDiv.style.cssText = 'margin-bottom: 20px;';
-
-    switch (config.popup_type) {
-      case 'email_capture':
-        const emailInput = document.createElement('input');
-        emailInput.type = 'email';
-        emailInput.placeholder = config.email_placeholder || 'Enter your email';
-        emailInput.style.cssText = `
-          width: 100%;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          margin-bottom: 12px;
-          font-size: 14px;
-          box-sizing: border-box;
-        `;
-        contentDiv.appendChild(emailInput);
-        break;
-
-      case 'discount_offer':
-        if (config.discount_code) {
-          const codeDiv = document.createElement('div');
-          codeDiv.style.cssText = `
-            background: #f0fdf4;
-            border: 2px solid #bbf7d0;
-            border-radius: 6px;
-            padding: 16px;
-            margin-bottom: 12px;
-          `;
-          
-          const codeText = document.createElement('div');
-          codeText.textContent = config.discount_code;
-          codeText.style.cssText = `
-            font-family: monospace;
-            font-size: 18px;
-            font-weight: bold;
-            color: #166534;
-          `;
-          
-          if (config.discount_percent) {
-            const percentText = document.createElement('div');
-            percentText.textContent = `${config.discount_percent}% OFF`;
-            percentText.style.cssText = `
-              color: #16a34a;
-              font-size: 12px;
-              margin-top: 4px;
-            `;
-            codeDiv.appendChild(percentText);
-          }
-          
-          codeDiv.appendChild(codeText);
-          contentDiv.appendChild(codeDiv);
-        }
-        break;
-
-      case 'survey':
-        const textarea = document.createElement('textarea');
-        textarea.placeholder = 'Your feedback...';
-        textarea.rows = 3;
-        textarea.style.cssText = `
-          width: 100%;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          margin-bottom: 12px;
-          font-size: 14px;
-          resize: vertical;
-          box-sizing: border-box;
-        `;
-        contentDiv.appendChild(textarea);
-        break;
-    }
-
-    popup.appendChild(contentDiv);
-
-    // Action button
-    if (config.button_text) {
-      const button = document.createElement('button');
-      button.textContent = config.button_text;
-      button.style.cssText = `
+    // Create popup HTML
+    const popupHTML = `
+      <div id="smartpop-${config.id}" class="smartpop-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-        padding: 12px 24px;
-        background: ${getButtonColor(config.popup_type)};
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.2s;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      ">
+        <div class="smartpop-modal" style="
+          background: white;
+          border-radius: 12px;
+          padding: 32px;
+          max-width: 450px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+          position: relative;
+          animation: smartpop-fadeIn 0.3s ease-out;
+        ">
+          <button class="smartpop-close" style="
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">×</button>
+          
+          <h2 style="
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            color: #111827;
+            line-height: 1.2;
+          ">${config.title}</h2>
+          
+          ${config.description ? `<p style="
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+          ">${config.description}</p>` : ''}
+          
+          ${config.discountPercent ? `<div style="
+            background: #fef3c7;
+            color: #d97706;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: inline-block;
+          ">${config.discountPercent}% OFF</div>` : ''}
+          
+          <form class="smartpop-form" style="margin-top: 24px;">
+            <input type="email" placeholder="${config.emailPlaceholder}" required style="
+              width: 100%;
+              padding: 12px 16px;
+              border: 2px solid #e5e7eb;
+              border-radius: 8px;
+              font-size: 16px;
+              margin-bottom: 16px;
+              box-sizing: border-box;
+              transition: border-color 0.2s;
+            " onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+            
+            <button type="submit" style="
+              width: 100%;
+              background: #3b82f6;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: background-color 0.2s;
+            " onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+              ${config.buttonText}
+            </button>
+          </form>
+          
+          ${config.discountCode ? `<p style="
+            margin-top: 16px;
+            font-size: 14px;
+            color: #6b7280;
+          ">Use code: <strong>${config.discountCode}</strong></p>` : ''}
+        </div>
+      </div>
+    `;
+
+    // Add CSS animation
+    if (!document.querySelector('#smartpop-styles')) {
+      const styles = document.createElement('style');
+      styles.id = 'smartpop-styles';
+      styles.textContent = `
+        @keyframes smartpop-fadeIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
       `;
-      
-      button.onclick = () => {
-        handlePopupAction(config);
-        trackPopupEvent(config.id, 'conversion');
-        overlay.remove();
-      };
-      
-      popup.appendChild(button);
+      document.head.appendChild(styles);
     }
 
-    popup.appendChild(closeBtn);
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
+    // Insert popup into DOM
+    document.body.insertAdjacentHTML('beforeend', popupHTML);
 
-    // Close on overlay click
-    overlay.onclick = (e) => {
-      if (e.target === overlay) {
-        trackPopupEvent(config.id, 'close');
-        overlay.remove();
-      }
-    };
+    // Add event listeners
+    const popup = document.getElementById(`smartpop-${config.id}`);
+    const closeBtn = popup.querySelector('.smartpop-close');
+    const form = popup.querySelector('.smartpop-form');
+
+    closeBtn.addEventListener('click', () => closePopup(config.id));
+    popup.addEventListener('click', (e) => {
+      if (e.target === popup) closePopup(config.id);
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = form.querySelector('input[type="email"]').value;
+      handleSubmit(config.id, email);
+    });
   }
 
-  function getButtonColor(popup_type) {
-    switch (popup_type) {
-      case 'email_capture': return '#2563eb';
-      case 'discount_offer': return '#16a34a';
-      case 'announcement': return '#9333ea';
-      case 'survey': return '#ea580c';
-      default: return '#2563eb';
+  // Close popup
+  function closePopup(popupId) {
+    const popup = document.getElementById(`smartpop-${popupId}`);
+    if (popup) {
+      popup.style.animation = 'smartpop-fadeOut 0.3s ease-in forwards';
+      setTimeout(() => {
+        popup.remove();
+        activePopups.delete(popupId);
+      }, 300);
     }
+    trackEvent(popupId, 'close');
   }
 
-  function handlePopupAction(config) {
-    // Handle specific actions based on popup type
-    switch (config.popup_type) {
-      case 'email_capture':
-        const emailInput = document.querySelector('input[type="email"]');
-        if (emailInput && emailInput.value) {
-          trackPopupEvent(config.id, 'conversion', emailInput.value);
-          console.log('Email captured:', emailInput.value);
-        }
-        break;
-      
-      case 'discount_offer':
-        if (config.discount_code) {
-          trackPopupEvent(config.id, 'conversion', null, config.discount_code);
-          // Copy discount code to clipboard
-          navigator.clipboard.writeText(config.discount_code).then(() => {
-            alert('Discount code copied to clipboard!');
-          });
-        }
-        break;
-      
-      case 'survey':
-        const textarea = document.querySelector('textarea');
-        if (textarea && textarea.value) {
-          console.log('Survey response:', textarea.value);
-        }
-        break;
-        
-      case 'announcement':
-        console.log('Announcement clicked');
-        break;
-    }
+  // Handle form submission
+  function handleSubmit(popupId, email) {
+    console.log('Email submitted:', email);
+    trackEvent(popupId, 'conversion', { email });
+    
+    // Show success message
+    const popup = document.getElementById(`smartpop-${popupId}`);
+    const modal = popup.querySelector('.smartpop-modal');
+    modal.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="
+          width: 64px;
+          height: 64px;
+          background: #10b981;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 16px auto;
+        ">
+          <svg width="32" height="32" fill="white" viewBox="0 0 24 24">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <h3 style="margin: 0 0 8px 0; color: #111827;">Thank you!</h3>
+        <p style="margin: 0; color: #6b7280;">Check your email for your discount code.</p>
+      </div>
+    `;
+    
+    setTimeout(() => closePopup(popupId), 3000);
   }
 
-  // Track popup events
-  async function trackPopupEvent(popupId, eventType, email = null, discountCode = null) {
-    try {
-      const eventData = {
+  // Track events
+  function trackEvent(popupId, eventType, data = {}) {
+    fetch(`${API_BASE}/popup-track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         popupId,
         eventType,
-        shop: shopDomain,
+        shop: SHOP_DOMAIN,
         timestamp: new Date().toISOString(),
-        pageUrl: window.location.href
-      };
-      
-      if (email) eventData.email = email;
-      if (discountCode) eventData.discountCode = discountCode;
-      
-      console.log('SmartPop: Tracking event:', eventType, 'for popup:', popupId);
-      
-      await fetch(`${SMARTPOP_API_BASE}/popup-track`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(eventData)
-      });
-    } catch (error) {
-      console.error('SmartPop: Error tracking event:', error);
-    }
+        pageUrl: window.location.href,
+        ...data
+      })
+    }).catch(error => console.error('Failed to track event:', error));
   }
 
-  // Initialize when DOM is ready
-  console.log('SmartPop: Script loaded, DOM state:', document.readyState);
-  if (document.readyState === 'loading') {
-    console.log('SmartPop: Waiting for DOM ready...');
-    document.addEventListener('DOMContentLoaded', fetchPopupConfigs);
-  } else {
-    console.log('SmartPop: DOM ready, fetching configs...');
-    fetchPopupConfigs();
+  // Add fade out animation
+  const fadeOutStyles = `
+    @keyframes smartpop-fadeOut {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.9); }
+    }
+  `;
+  
+  if (!document.querySelector('#smartpop-fadeout-styles')) {
+    const styles = document.createElement('style');
+    styles.id = 'smartpop-fadeout-styles';
+    styles.textContent = fadeOutStyles;
+    document.head.appendChild(styles);
   }
+
+  // Initialize
+  loadPopupConfigs();
+
+  // Expose API for Shopify themes
+  window.SmartPop = {
+    trackCartValue: (value) => {
+      behavior.cartValue = value;
+      checkTriggers();
+    },
+    triggerPopup: (popupId) => {
+      const config = popupConfigs.find(p => p.id === popupId);
+      if (config) showPopup(config);
+    },
+    getBehavior: () => ({ ...behavior })
+  };
+
+  console.log('SmartPop SDK loaded successfully');
 })();

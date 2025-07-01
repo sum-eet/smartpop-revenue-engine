@@ -55,7 +55,9 @@ export const PopupManager: React.FC = () => {
       // Transform API data to our format
       const configs: PopupConfig[] = data.map((popup: any) => ({
         id: popup.id,
-        type: popup.trigger_type === 'scroll_depth' ? 'scroll-trigger' : 'welcome',
+        type: popup.trigger_type === 'scroll_depth' ? 'scroll-trigger' : 
+              popup.trigger_type === 'exit_intent' ? 'exit-intent' :
+              popup.trigger_type === 'time_delay' ? 'welcome' : 'welcome',
         title: popup.title || 'Special Offer',
         subtitle: popup.description || 'Don\'t miss out!',
         discountPercent: popup.discount_percent ? parseInt(popup.discount_percent) : undefined,
@@ -65,9 +67,15 @@ export const PopupManager: React.FC = () => {
         triggers: {
           scrollDepth: popup.trigger_type === 'scroll_depth' ? parseInt(popup.trigger_value || '50') : undefined,
           timeOnSite: popup.trigger_type === 'time_delay' ? parseInt(popup.trigger_value || '10') : undefined,
-          isFirstVisit: popup.trigger_type === 'page_view' ? true : undefined
+          isFirstVisit: popup.trigger_type === 'page_view' ? true : undefined,
+          hasExitIntent: popup.trigger_type === 'exit_intent' ? true : undefined
         }
-      })).filter((config: PopupConfig) => config.triggers.scrollDepth || config.triggers.timeOnSite || config.triggers.isFirstVisit);
+      })).filter((config: PopupConfig) => 
+        config.triggers.scrollDepth || 
+        config.triggers.timeOnSite || 
+        config.triggers.isFirstVisit || 
+        config.triggers.hasExitIntent
+      );
 
       setPopupConfigs(configs);
       console.log('Loaded popup configs:', configs);
