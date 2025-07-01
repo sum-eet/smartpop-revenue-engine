@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.popup-update]
 verify_jwt = false
+
+[functions.install-direct]
+verify_jwt = false

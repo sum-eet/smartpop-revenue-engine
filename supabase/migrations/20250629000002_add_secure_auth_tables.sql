@@ -18,12 +18,22 @@ CREATE TABLE IF NOT EXISTS api_keys (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Add subscription status to shops table
+-- Ensure shops table exists and add subscription status columns
+CREATE TABLE IF NOT EXISTS shops (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  shop_domain TEXT NOT NULL UNIQUE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add new columns to shops table (safe with IF NOT EXISTS)
 ALTER TABLE shops ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active' CHECK (subscription_status IN ('active', 'inactive', 'suspended', 'cancelled'));
 ALTER TABLE shops ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'basic' CHECK (plan_type IN ('basic', 'pro', 'enterprise'));
 ALTER TABLE shops ADD COLUMN IF NOT EXISTS monthly_request_limit INTEGER DEFAULT 100000;
 ALTER TABLE shops ADD COLUMN IF NOT EXISTS current_month_usage INTEGER DEFAULT 0;
 ALTER TABLE shops ADD COLUMN IF NOT EXISTS security_settings JSONB DEFAULT '{"rate_limit": 100, "ip_whitelist": [], "webhook_validation": true}';
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS uninstalled_at TIMESTAMPTZ;
 
 -- Rate limiting and security logs
 CREATE TABLE IF NOT EXISTS security_logs (
@@ -192,33 +202,39 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Schedule cleanup function (would need to be set up via pg_cron or external scheduler)
 -- SELECT cron.schedule('cleanup-security-logs', '0 2 * * *', 'SELECT cleanup_old_security_logs();');
 
--- Add webhook tables for audit trail
-ALTER TABLE shopify_webhooks ADD COLUMN IF NOT EXISTS signature_verified BOOLEAN DEFAULT FALSE;
-ALTER TABLE shopify_webhooks ADD COLUMN IF NOT EXISTS processing_status TEXT DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processed', 'failed', 'retry'));
-ALTER TABLE shopify_webhooks ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
-ALTER TABLE shopify_webhooks ADD COLUMN IF NOT EXISTS error_message TEXT;
+-- Shopify webhooks table for audit trail
+CREATE TABLE IF NOT EXISTS shopify_webhooks (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  topic TEXT NOT NULL,
+  shop_domain TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  signature_verified BOOLEAN DEFAULT FALSE,
+  processing_status TEXT DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processed', 'failed', 'retry')),
+  retry_count INTEGER DEFAULT 0,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  verified BOOLEAN DEFAULT FALSE
+);
 
--- Add CRM sync security
-ALTER TABLE crm_sync_queue ADD COLUMN IF NOT EXISTS encryption_key_id TEXT;
-ALTER TABLE crm_sync_queue ADD COLUMN IF NOT EXISTS data_hash TEXT; -- SHA-256 of customer data for integrity
-ALTER TABLE crm_sync_queue ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
-ALTER TABLE crm_sync_queue ADD COLUMN IF NOT EXISTS last_error TEXT;
+-- CRM sync queue table
+CREATE TABLE IF NOT EXISTS crm_sync_queue (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  customer_data JSONB NOT NULL,
+  sync_status TEXT DEFAULT 'pending' CHECK (sync_status IN ('pending', 'processing', 'completed', 'failed')),
+  encryption_key_id TEXT,
+  data_hash TEXT, -- SHA-256 of customer data for integrity
+  retry_count INTEGER DEFAULT 0,
+  last_error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Create view for security dashboard
-CREATE OR REPLACE VIEW security_dashboard AS
-SELECT 
-  s.shop_domain,
-  s.subscription_status,
-  s.plan_type,
-  s.current_month_usage,
-  s.monthly_request_limit,
-  COUNT(ak.id) as active_api_keys,
-  COUNT(CASE WHEN sl.event_type = 'auth_failure' AND sl.created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as failed_auth_24h,
-  COUNT(CASE WHEN sl.event_type = 'rate_limit' AND sl.created_at > NOW() - INTERVAL '1 hour' THEN 1 END) as rate_limit_1h,
-  MAX(ak.last_used_at) as last_api_usage,
-  COUNT(CASE WHEN sl.severity IN ('error', 'critical') AND sl.created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as critical_events_24h
-FROM shops s
-LEFT JOIN api_keys ak ON s.shop_domain = ak.shop_domain AND ak.is_active = true
-LEFT JOIN security_logs sl ON s.shop_domain = sl.shop_domain
-WHERE s.is_active = true
-GROUP BY s.shop_domain, s.subscription_status, s.plan_type, s.current_month_usage, s.monthly_request_limit;
+-- Generic webhooks table for non-Shopify webhooks
+CREATE TABLE IF NOT EXISTS generic_webhooks (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  headers JSONB,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Note: Security dashboard view will be created after all columns are confirmed to exist

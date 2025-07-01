@@ -85,10 +85,117 @@ serve(async (req) => {
         })
       }
       
-      // If no action, return error
+      // SAVE/CREATE ACTION - SAVE POPUP CONFIGURATION
+      if (body.action === 'save' || !body.action) {
+        console.log('SAVING POPUP CONFIG:', JSON.stringify(body, null, 2))
+        
+        // Required fields for popup
+        if (!body.name && !body.title) {
+          return new Response(JSON.stringify({ error: 'Missing name/title for popup' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // First, get or create the shop to get shop_id
+        const shopDomain = body.shop_domain || 'testingstoresumeet.myshopify.com'
+        
+        let shopResult = await supabase
+          .from('shops')
+          .select('id')
+          .eq('shop_domain', shopDomain)
+          .single()
+        
+        let shopId
+        if (shopResult.error) {
+          // Create shop if it doesn't exist
+          const createShopResult = await supabase
+            .from('shops')
+            .insert([{
+              shop_domain: shopDomain,
+              is_active: true
+            }])
+            .select('id')
+            .single()
+          
+          if (createShopResult.error) {
+            console.error('Failed to create shop:', createShopResult.error)
+            return new Response(JSON.stringify({ 
+              error: 'Failed to create shop', 
+              details: createShopResult.error.message 
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          shopId = createShopResult.data.id
+        } else {
+          shopId = shopResult.data.id
+        }
+        
+        const popupData = {
+          shop_id: shopId,
+          name: body.name || body.title || 'Untitled Popup',
+          trigger_type: body.trigger_type || 'time_delay',
+          trigger_value: body.trigger_value?.toString() || '5',
+          page_target: body.page_target || 'all_pages',
+          popup_type: body.popup_type || body.type || 'discount_offer',
+          title: body.title || body.name || 'Untitled Popup',
+          description: body.description || '',
+          button_text: body.button_text || 'Get Discount',
+          email_placeholder: body.email_placeholder || 'Enter your email',
+          discount_code: body.discount_code || '',
+          discount_percent: body.discount_value?.toString() || body.discount_percent || '10',
+          is_active: body.is_active !== undefined ? body.is_active : true,
+          updated_at: new Date().toISOString()
+        }
+        
+        let result
+        if (body.id) {
+          // Update existing popup
+          console.log('UPDATING POPUP ID:', body.id)
+          
+          result = await supabase
+            .from('popups')
+            .update(popupData)
+            .eq('id', body.id)
+            .select()
+        } else {
+          // Create new popup
+          console.log('CREATING NEW POPUP')
+          result = await supabase
+            .from('popups')
+            .insert([popupData])
+            .select()
+        }
+        
+        if (result.error) {
+          console.error('Save error:', result.error)
+          return new Response(JSON.stringify({ 
+            error: 'Save failed', 
+            details: result.error.message,
+            hint: result.error.hint
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        console.log('SAVE SUCCESS:', result.data)
+        return new Response(JSON.stringify({ 
+          success: true, 
+          data: result.data?.[0],
+          message: body.id ? 'Updated' : 'Created'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // If no valid action, return error
       return new Response(JSON.stringify({ 
         error: 'No valid action provided',
-        supported_actions: ['delete', 'toggle_active'],
+        supported_actions: ['save', 'delete', 'toggle_active'],
         received: body
       }), {
         status: 400,

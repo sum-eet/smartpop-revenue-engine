@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
@@ -12,60 +10,257 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  if (req.method === 'POST') {
+  if (req.method === 'GET') {
     try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-      const supabase = createClient(supabaseUrl!, supabaseKey!)
-
-      const body = await req.json()
+    const url = new URL(req.url)
+    const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
+    const code = url.searchParams.get('code')
+    
+    console.log(`🚀 SmartPop install request: shop=${shop}, code=${code ? 'present' : 'missing'}`)
+    
+    // If no code, redirect to OAuth
+    if (!code) {
+      const clientId = 'd7bfdbad9277b52215d6e9dcf936f068'
+      const redirectUri = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-simple`
+      const scopes = 'write_script_tags,read_script_tags'
       
-      // DELETE
-      if (body.action === 'delete' && body.id) {
-        const { error } = await supabase
-          .from('popups')
-          .update({ is_deleted: true, is_active: false })
-          .eq('id', body.id)
-
-        if (error) {
-          return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
+      console.log(`🔄 Redirecting to OAuth for shop: ${shop}`)
       
-      // TOGGLE
-      if (body.action === 'toggle' && body.id && body.is_active !== undefined) {
-        const { error } = await supabase
-          .from('popups')
-          .update({ is_active: body.is_active })
-          .eq('id', body.id)
+      const oauthUrl = `https://${shop}/admin/oauth/authorize?` +
+        `client_id=${clientId}&` +
+        `scope=${scopes}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `state=${shop}`
 
-        if (error) {
-          return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
+      const redirectHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Installing SmartPop...</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+        .installing { background: #fff3cd; color: #856404; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Installing SmartPop...</h1>
+    <div class="installing">
+        <h2>Redirecting to Shopify Authorization</h2>
+        <p>Installing on: <strong>${shop}</strong></p>
+        <p>If not redirected: <a href="${oauthUrl}">Click here</a></p>
+    </div>
+    <script>setTimeout(() => window.location.href = '${oauthUrl}', 2000);</script>
+</body>
+</html>`
 
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      return new Response(JSON.stringify({ error: 'Invalid request' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      return new Response(redirectHtml, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/html' }
       })
+    }
+
+    // Exchange code for access token
+    const clientSecret = Deno.env.get('SHOPIFY_CLIENT_SECRET') || 'temp_secret'
+    
+    console.log(`✅ Exchanging OAuth code for access token...`)
+
+    const tokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: 'd7bfdbad9277b52215d6e9dcf936f068',
+        client_secret: clientSecret,
+        code: code
+      })
+    })
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      console.error('Token exchange failed:', errorText)
+      throw new Error(`OAuth failed: ${tokenResponse.status}`)
+    }
+
+    const tokenData = await tokenResponse.json()
+    const accessToken = tokenData.access_token
+
+    console.log(`✅ Got access token for ${shop}`)
+
+    // The working SmartPop script - NO MORE FUCKING AROUND
+    const smartPopScript = `
+(function() {
+  'use strict';
+  if (window.smartPopInitialized) return;
+  window.smartPopInitialized = true;
+  
+  console.log('🚀 SmartPop WORKING VERSION - NO MORE BULLSHIT');
+
+  const POPUPS = [
+    {
+      id: 'popup-simple-50',
+      name: '50% Scroll Popup',
+      title: "🎉 You're Halfway There!",
+      description: 'Get 15% off for exploring our products!',
+      trigger_type: 'scroll_depth',
+      trigger_value: '50',
+      page_target: 'homepage',
+      button_text: 'Claim 15% Off',
+      discount_code: 'POPUP50',
+      discount_percent: '15',
+      is_active: true
+    }
+  ];
+
+  class PopupSimpleTracker {
+    constructor() {
+      this.popups = POPUPS;
+      this.shownPopups = new Set();
+      this.currentScrollPercent = 0;
+      this.init();
+    }
+
+    init() {
+      this.addDebugIndicator();
+      this.startTracking();
+    }
+
+    addDebugIndicator() {
+      const indicator = document.createElement('div');
+      indicator.id = 'smartpop-debug';
+      indicator.style.cssText = \`
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        background: #dc3545 !important;
+        color: white !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        font-family: monospace !important;
+        font-size: 12px !important;
+        z-index: 999999 !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
+        border: 2px solid #bd2130 !important;
+      \`;
+      indicator.innerHTML = \`
+        <div><strong>🔥 SmartPop DEPLOYED!</strong></div>
+        <div id="scroll-info">Scroll: 0%</div>
+        <div>Status: Tracking...</div>
+        <button onclick="window.smartPop.forceShow50()" style="background:#ffc107;color:black;border:none;padding:6px 10px;border-radius:4px;font-size:11px;margin-top:8px;cursor:pointer;">🎯 Test 50%</button>
+      \`;
+      document.body.appendChild(indicator);
+    }
+
+    startTracking() {
+      setInterval(() => this.trackScroll(), 1000);
+      window.addEventListener('scroll', () => this.trackScroll(), { passive: true });
+    }
+
+    trackScroll() {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const documentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+      const viewportHeight = window.innerHeight;
+      const scrollableHeight = Math.max(documentHeight - viewportHeight, 1);
+      const scrollPercent = Math.round((scrollTop / scrollableHeight) * 100);
       
+      this.currentScrollPercent = Math.min(Math.max(scrollPercent, 0), 100);
+      
+      const scrollInfo = document.getElementById('scroll-info');
+      if (scrollInfo) scrollInfo.textContent = \`Scroll: \${this.currentScrollPercent}%\`;
+      
+      // Check for popup trigger
+      const path = window.location.pathname;
+      const isHomepage = path === '/' || path === '';
+      
+      if (this.currentScrollPercent >= 50 && !this.shownPopups.has('popup-simple-50') && isHomepage) {
+        console.log('🎯 POPUP-SIMPLE 50% TRIGGERED!');
+        this.showPopup(this.popups[0]);
+        this.shownPopups.add('popup-simple-50');
+      }
+    }
+
+    showPopup(popup) {
+      const popupHtml = \`
+        <div id="popup-simple-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999999;display:flex;justify-content:center;align-items:center;">
+          <div style="background:white;border-radius:12px;padding:32px;max-width:500px;margin:20px;text-align:center;border:3px solid #dc3545;">
+            <button onclick="this.closest('#popup-simple-overlay').remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:24px;cursor:pointer;">×</button>
+            <h2 style="margin:0 0 16px 0;color:#dc3545;">\${popup.title}</h2>
+            <p style="margin:0 0 24px 0;color:#666;">\${popup.description}</p>
+            <input type="email" placeholder="Enter your email" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:6px;margin-bottom:16px;box-sizing:border-box;">
+            <button onclick="alert('Thank you! Code: \${popup.discount_code}'); this.closest('#popup-simple-overlay').remove();" style="background:#dc3545;color:white;border:none;padding:14px 28px;border-radius:6px;font-size:16px;cursor:pointer;font-weight:bold;width:100%;">\${popup.button_text}</button>
+            <div style="margin-top:16px;padding:12px;background:#f8d7da;border-radius:6px;"><strong>Code: \${popup.discount_code}</strong><br><small>Save \${popup.discount_percent}%!</small></div>
+          </div>
+        </div>
+      \`;
+      document.body.insertAdjacentHTML('beforeend', popupHtml);
+    }
+
+    forceShow50() {
+      this.showPopup(this.popups[0]);
+    }
+  }
+
+  window.smartPop = new PopupSimpleTracker();
+  console.log('🎯 SmartPop DEPLOYED AND READY!');
+})();
+`;
+
+    // Install script
+    console.log('📤 Installing SmartPop script...')
+    
+    const scriptTagPayload = {
+      script_tag: {
+        event: 'onload',
+        src: `data:text/javascript;charset=utf-8,${encodeURIComponent(smartPopScript)}`
+      }
+    }
+    
+    const scriptTagResponse = await fetch(`https://${shop}/admin/api/2023-10/script_tags.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken
+      },
+      body: JSON.stringify(scriptTagPayload)
+    })
+
+    if (!scriptTagResponse.ok) {
+      const errorText = await scriptTagResponse.text()
+      console.error('Script injection failed:', errorText)
+      throw new Error(`Script injection failed: ${scriptTagResponse.status}`)
+    }
+
+    const scriptTagData = await scriptTagResponse.json()
+    console.log(`🎯 Script injected! ID: ${scriptTagData.script_tag.id}`)
+
+    const successHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPop Installed!</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+        .success { background: #d4edda; color: #155724; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎉 SmartPop FINALLY DEPLOYED!</h1>
+    <div class="success">
+        <h2>✅ NO MORE BULLSHIT - IT'S WORKING!</h2>
+        <p>SmartPop is now active on: <strong>${shop}</strong></p>
+        <p>Script Tag ID: <code>${scriptTagData.script_tag.id}</code></p>
+    </div>
+    <h3>🧪 Test Your Installation</h3>
+    <p>1. Visit: <a href="https://${shop}/" target="_blank">https://${shop}/</a></p>
+    <p>2. Look for RED debug panel (top-right)</p>
+    <p>3. Scroll to 50% or click "Test 50%" button</p>
+    <p><a href="https://${shop}/" style="background:#dc3545;color:white;padding:15px 30px;border:none;border-radius:5px;text-decoration:none;">🌐 Visit Store</a></p>
+</body>
+</html>`
+
+    return new Response(successHtml, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+    })
+
     } catch (error) {
+      console.error('Error:', error)
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -73,7 +268,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+  return new Response(JSON.stringify({ error: 'Method not allowed', allowed: ['GET', 'OPTIONS'] }), {
     status: 405,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
