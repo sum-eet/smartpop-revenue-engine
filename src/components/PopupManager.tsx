@@ -12,7 +12,7 @@ interface VisitorBehavior {
 
 interface PopupConfig {
   id: string;
-  type: 'welcome' | 'cart-abandonment' | 'exit-intent' | 'scroll-trigger';
+  type: 'welcome' | 'cart-abandonment' | 'exit-intent' | 'email-capture';
   title: string;
   subtitle: string;
   discountPercent?: number;
@@ -55,7 +55,7 @@ export const PopupManager: React.FC = () => {
       // Transform API data to our format
       const configs: PopupConfig[] = data.map((popup: any) => ({
         id: popup.id,
-        type: popup.trigger_type === 'scroll_depth' ? 'scroll-trigger' : 
+        type: popup.trigger_type === 'scroll_depth' ? 'email-capture' : 
               popup.trigger_type === 'exit_intent' ? 'exit-intent' :
               popup.trigger_type === 'time_delay' ? 'welcome' : 'welcome',
         title: popup.title || 'Special Offer',

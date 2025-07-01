@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,12 +31,14 @@ interface PopupCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingPopup?: any;
 }
 
 export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  editingPopup
 }) => {
   const [formData, setFormData] = useState<PopupFormData>({
     name: '',
@@ -56,53 +57,25 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
-    if (!formData.name.trim()) {
-      toast.error('Please enter a popup name');
-      return;
-    }
-    
-    if (!formData.triggerType) {
-      toast.error('Please select a trigger type');
-      return;
-    }
-    
-    if (!formData.pageTarget) {
-      toast.error('Please select a page target');
-      return;
-    }
-    
-    if (!formData.popupType) {
-      toast.error('Please select a popup type');
-      return;
-    }
-
-    setIsSubmitting(true);
-    
-    try {
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-shop-domain': 'testingstoresumeet.myshopify.com',
-          'x-api-key': 'test-key'
-        },
-        body: JSON.stringify(formData)
+  // Populate form when editing
+  useEffect(() => {
+    if (editingPopup) {
+      setFormData({
+        name: editingPopup.name || '',
+        triggerType: editingPopup.trigger_type || 'page_view',
+        triggerValue: editingPopup.trigger_value || '',
+        pageTarget: editingPopup.page_target || 'all_pages',
+        popupType: editingPopup.popup_type || 'email_capture',
+        title: editingPopup.title || '',
+        description: editingPopup.description || '',
+        buttonText: editingPopup.button_text || 'Get Started',
+        emailPlaceholder: editingPopup.email_placeholder || 'Enter your email',
+        discountCode: editingPopup.discount_code || '',
+        discountPercent: editingPopup.discount_percent || '',
+        isActive: editingPopup.is_active !== undefined ? editingPopup.is_active : true
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create popup');
-      }
-
-      toast.success('Popup created successfully!');
-      onSuccess();
-      onClose();
-      
-      // Reset form
+    } else {
+      // Reset form for new popup
       setFormData({
         name: '',
         triggerType: 'page_view',
@@ -117,10 +90,51 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
         discountPercent: '',
         isActive: true
       });
+    }
+  }, [editingPopup, isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Please enter a popup name');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const url = editingPopup 
+        ? 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-edit'
+        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-create';
+      
+      const body = editingPopup 
+        ? { ...formData, id: editingPopup.id }
+        : formData;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-shop-domain': 'testingstoresumeet.myshopify.com',
+          'x-api-key': 'test-key'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to ${editingPopup ? 'update' : 'create'} popup`);
+      }
+
+      toast.success(`Popup ${editingPopup ? 'updated' : 'created'} successfully!`);
+      onSuccess();
+      onClose();
       
     } catch (error) {
-      console.error('Error creating popup:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create popup');
+      console.error(`Error ${editingPopup ? 'updating' : 'creating'} popup:`, error);
+      toast.error(error instanceof Error ? error.message : `Failed to ${editingPopup ? 'update' : 'create'} popup`);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +144,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Popup</DialogTitle>
+          <DialogTitle>{editingPopup ? 'Edit Popup' : 'Create New Popup'}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -305,7 +319,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Creating...' : 'Create Popup'}
+              {isSubmitting ? (editingPopup ? 'Updating...' : 'Creating...') : (editingPopup ? 'Update Popup' : 'Create Popup')}
             </Button>
           </div>
         </form>
