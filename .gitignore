@@ -22,3 +22,52 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables and sensitive data
+.env
+.env.local
+.env.production
+.env.development
+
+# Deployment scripts with sensitive data
+deploy-to-shopify.js
+deploy-via-api.js
+manual-script-injection.js
+
+# Development and testing scripts
+api-deploy.js
+auto-install.js
+console-deploy-updated.js
+debug-homepage.js
+deploy-direct.js
+deploy-function-direct.js
+deploy-install-direct.js
+deploy-install-script-updated.js
+direct-deploy.js
+execute-deploy.js
+force-deploy.js
+
+# Test and temporary files
+test-*.html
+test-*.js
+*-test.html
+*-test.js
+temp-*
+tmp-*
+
+# Documentation mess (keep only main README.md)
+CUSTOMER_FLOW_EXPLANATION.md
+DEPLOYMENT_INSTRUCTIONS.md
+DEPLOYMENT_SOLUTION.md
+DEPLOY_NOW.md
+FINAL_WORKING_SOLUTION.md
+GET_ACCESS_TOKEN.md
+INSTALLATION_GUIDE.md
+INSTALL_NOW.md
+MANUAL_DEPLOYMENT_GUIDE.md
+SHOPIFY_INSTALLATION.md
+TRY_THIS_URL.md
+WORKING_INSTALLATION.md
+
+# Shopify development files
+.shopify/
