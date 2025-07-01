@@ -1,36 +1,36 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Demo from "./pages/Demo";
-import ShopifyInstall from "./pages/ShopifyInstall";
-import ShopifyAuth from "./pages/ShopifyAuth";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from "@/components/ui/sonner";
+import Index from './pages/Index';
+import Dashboard from './pages/Dashboard';
+import Demo from './pages/Demo';
+import ShopifyAuth from './pages/ShopifyAuth';
+import ShopifyInstall from './pages/ShopifyInstall';
+import NotFound from './pages/NotFound';
+import { PopupManager } from './components/PopupManager';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/demo" element={<Demo />} />
-          <Route path="/install" element={<ShopifyInstall />} />
-          <Route path="/auth/shopify" element={<ShopifyAuth />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <div className="min-h-screen bg-background">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/demo" element={<Demo />} />
+            <Route path="/auth/shopify" element={<ShopifyAuth />} />
+            <Route path="/install" element={<ShopifyInstall />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <PopupManager />
+          <Toaster />
+        </div>
+      </Router>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

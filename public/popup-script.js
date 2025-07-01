@@ -1,3 +1,4 @@
+
 (function() {
   'use strict';
   
@@ -26,13 +27,30 @@
     sessionData.timeOnPage = Math.floor((Date.now() - startTime) / 1000);
   }, 1000);
 
-  // Track scroll depth
+  // Track scroll depth with proper throttling
+  let scrollTicking = false;
   function updateScrollDepth() {
-    const scrolled = window.scrollY;
-    const maxHeight = document.documentElement.scrollHeight - window.innerHeight;
-    sessionData.scrollDepth = Math.floor((scrolled / maxHeight) * 100);
+    if (!scrollTicking) {
+      requestAnimationFrame(() => {
+        const scrolled = window.scrollY;
+        const maxHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const scrollPercent = maxHeight > 0 ? Math.round((scrolled / maxHeight) * 100) : 0;
+        const validScrollPercent = Math.min(100, Math.max(0, scrollPercent));
+        
+        if (validScrollPercent > sessionData.scrollDepth) {
+          sessionData.scrollDepth = validScrollPercent;
+          console.log('SmartPop: Scroll depth updated:', validScrollPercent + '%');
+          
+          // Check for scroll-triggered popups
+          checkScrollTriggers(validScrollPercent);
+        }
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
   }
-  window.addEventListener('scroll', updateScrollDepth);
+  
+  window.addEventListener('scroll', updateScrollDepth, { passive: true });
 
   // Track exit intent
   let exitIntentTriggered = false;
@@ -50,10 +68,15 @@
       console.log('SmartPop: Fetching configs for shop:', shopDomain);
       const response = await fetch(`${SMARTPOP_API_BASE}/popup-config?shop=${shopDomain}`);
       console.log('SmartPop: API response status:', response.status);
+      
       if (response.ok) {
         popupConfigs = await response.json();
         console.log('SmartPop: Found', popupConfigs.length, 'popup configs');
-        console.log('SmartPop: First popup:', popupConfigs[0]);
+        
+        // Filter and log scroll depth configs
+        const scrollConfigs = popupConfigs.filter(config => config.trigger_type === 'scroll_depth');
+        console.log('SmartPop: Scroll depth configs:', scrollConfigs);
+        
         initializePopups();
       }
     } catch (error) {
@@ -66,15 +89,14 @@
     console.log('SmartPop: Initializing popups...');
     
     popupConfigs.forEach(config => {
-      console.log('SmartPop: Processing popup:', config.name, 'Active:', config.is_active);
+      console.log('SmartPop: Processing popup:', config.name, 'Type:', config.trigger_type, 'Value:', config.trigger_value, 'Active:', config.is_active);
+      
       if (!config.is_active) return;
       
       // Check if popup should be shown on current page
-      console.log('SmartPop: Checking page target:', config.page_target);
       if (!shouldShowOnCurrentPage(config.page_target)) return;
       
       // Set up triggers based on popup configuration
-      console.log('SmartPop: Setting up trigger for:', config.name);
       setupTrigger(config);
     });
   }
@@ -105,6 +127,7 @@
   // Set up trigger monitoring for popup
   function setupTrigger(config) {
     console.log('SmartPop: Setup trigger type:', config.trigger_type, 'value:', config.trigger_value);
+    
     switch (config.trigger_type) {
       case 'time_delay':
         const delay = parseInt(config.trigger_value) * 1000;
@@ -116,41 +139,47 @@
         break;
         
       case 'scroll_depth':
-        const targetDepth = parseInt(config.triggerValue);
-        const scrollCheck = setInterval(() => {
-          if (sessionData.scrollDepth >= targetDepth) {
-            clearInterval(scrollCheck);
-            showPopup(config);
-          }
-        }, 500);
+        // Scroll depth is handled by the global scroll listener
+        const targetDepth = parseInt(config.trigger_value);
+        console.log('SmartPop: Scroll depth trigger set for:', targetDepth + '%');
+        // Store the config for later use by checkScrollTriggers
         break;
         
       case 'page_view':
-        if (sessionData.pageViews >= parseInt(config.triggerValue)) {
+        if (sessionData.pageViews >= parseInt(config.trigger_value)) {
           showPopup(config);
         }
         break;
         
       case 'exit_intent':
         // Exit intent is handled globally
-        break;
-        
-      case 'click':
-        // For now, we'll trigger on any button click
-        document.addEventListener('click', (e) => {
-          if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') {
-            showPopup(config);
-          }
-        }, { once: true });
+        console.log('SmartPop: Exit intent trigger set');
         break;
     }
+  }
+
+  // Check scroll triggers
+  function checkScrollTriggers(currentScrollDepth) {
+    popupConfigs.forEach(config => {
+      if (config.trigger_type === 'scroll_depth' && 
+          config.is_active && 
+          !shownPopups.has(config.id)) {
+        
+        const targetDepth = parseInt(config.trigger_value);
+        
+        if (currentScrollDepth >= targetDepth && shouldShowOnCurrentPage(config.page_target)) {
+          console.log(`SmartPop: Scroll trigger activated! ${currentScrollDepth}% >= ${targetDepth}%`);
+          showPopup(config);
+        }
+      }
+    });
   }
 
   // Check triggers (used for exit intent)
   function checkTriggers(triggerType) {
     popupConfigs.forEach(config => {
-      if (config.triggerType === triggerType && !shownPopups.has(config.id)) {
-        if (shouldShowOnCurrentPage(config.pageTarget)) {
+      if (config.trigger_type === triggerType && !shownPopups.has(config.id)) {
+        if (shouldShowOnCurrentPage(config.page_target)) {
           showPopup(config);
         }
       }
@@ -255,6 +284,7 @@
           border-radius: 4px;
           margin-bottom: 12px;
           font-size: 14px;
+          box-sizing: border-box;
         `;
         contentDiv.appendChild(emailInput);
         break;
@@ -307,6 +337,7 @@
           margin-bottom: 12px;
           font-size: 14px;
           resize: vertical;
+          box-sizing: border-box;
         `;
         contentDiv.appendChild(textarea);
         break;
@@ -333,7 +364,7 @@
       
       button.onclick = () => {
         handlePopupAction(config);
-        trackPopupEvent(config.id, 'close');
+        trackPopupEvent(config.id, 'conversion');
         overlay.remove();
       };
       
@@ -351,9 +382,6 @@
         overlay.remove();
       }
     };
-
-    // Track popup view
-    trackPopupEvent(config.id, 'view');
   }
 
   function getButtonColor(popup_type) {
@@ -367,15 +395,11 @@
   }
 
   function handlePopupAction(config) {
-    // Track conversion
-    trackPopupEvent(config.id, 'conversion');
-    
     // Handle specific actions based on popup type
     switch (config.popup_type) {
       case 'email_capture':
         const emailInput = document.querySelector('input[type="email"]');
         if (emailInput && emailInput.value) {
-          // Track email capture with the email
           trackPopupEvent(config.id, 'conversion', emailInput.value);
           console.log('Email captured:', emailInput.value);
         }
@@ -383,7 +407,6 @@
       
       case 'discount_offer':
         if (config.discount_code) {
-          // Track discount code usage
           trackPopupEvent(config.id, 'conversion', null, config.discount_code);
           // Copy discount code to clipboard
           navigator.clipboard.writeText(config.discount_code).then(() => {
@@ -400,7 +423,6 @@
         break;
         
       case 'announcement':
-        // Just track the conversion for announcements
         console.log('Announcement clicked');
         break;
     }
