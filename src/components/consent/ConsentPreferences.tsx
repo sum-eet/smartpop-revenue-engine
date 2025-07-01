@@ -182,7 +182,7 @@ export const ConsentPreferences: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {permissionCategories.map((category) => (
-            <div key={category.key} className="p-4 border rounded-lg">
+            <div key={String(category.key)} className="p-4 border rounded-lg">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

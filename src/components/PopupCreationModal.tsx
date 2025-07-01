@@ -40,10 +40,10 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
   const [isSaving, setIsSaving] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
     name: '',
-    triggerType: '' as TriggerType,
+    triggerType: 'time_delay' as TriggerType,
     triggerValue: '',
-    pageTarget: '' as PageTarget,
-    popupType: '' as PopupType,
+    pageTarget: 'all_pages' as PageTarget,
+    popupType: 'email_capture' as PopupType,
     title: '',
     description: '',
     buttonText: '',
@@ -588,13 +588,13 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({ isOpen, 
   const isStepValid = () => {
     switch (step) {
       case 1:
-        return popupConfig.triggerType !== '';
+        return popupConfig.triggerType !== 'time_delay' || popupConfig.triggerType !== '';
       case 2:
         return popupConfig.name !== '' && popupConfig.triggerValue !== '';
       case 3:
-        return popupConfig.pageTarget !== '';
+        return popupConfig.pageTarget !== 'all_pages' || popupConfig.pageTarget !== '';
       case 4:
-        return popupConfig.popupType !== '' && popupConfig.title !== '' && popupConfig.buttonText !== '';
+        return popupConfig.popupType !== 'email_capture' || (popupConfig.popupType !== '' && popupConfig.title !== '' && popupConfig.buttonText !== '');
       default:
         return false;
     }

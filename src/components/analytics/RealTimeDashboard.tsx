@@ -216,7 +216,7 @@ export const RealTimeDashboard: React.FC = () => {
             ) : (
               <WifiOff className="h-4 w-4 text-red-600" />
             )}
-            <Badge variant={connected ? "success" : "destructive"}>
+            <Badge variant={connected ? "default" : "destructive"}>
               {connected ? 'Connected' : 'Disconnected'}
             </Badge>
           </div>
