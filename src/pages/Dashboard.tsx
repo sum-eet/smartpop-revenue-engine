@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,9 +74,6 @@ const Dashboard = () => {
     setEditingPopup(popup);
     setIsPopupModalOpen(true);
   };
-
-
-
 
   const getPopupTypeColor = (type: string) => {
     switch (type) {
@@ -475,6 +471,10 @@ const Dashboard = () => {
         onClose={() => {
           setIsPopupModalOpen(false);
           setEditingPopup(null);
+        }}
+        onSuccess={() => {
+          fetchPopups();
+          fetchAnalytics();
         }}
         editingPopup={editingPopup}
       />
