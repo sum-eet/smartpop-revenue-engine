@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Script Injection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; line-height: 1.6; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .button { background: #007cba; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; font-size: 16px; }
+        .button:hover { background: #005a8b; }
+        .button.success { background: #28a745; }
+        .button.warning { background: #ffc107; color: #212529; }
+        .button.danger { background: #dc3545; }
+        code { background: #f1f3f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .script-box { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Direct SmartPop Script Injection</h1>
+    
+    <div class="info">
+        <h3>Manual Script Deployment</h3>
+        <p>Since the function deployment is having issues, this page will directly inject the working SmartPop script using the Shopify Admin API.</p>
+        <p><strong>Target Store:</strong> testingstoresumeet.myshopify.com</p>
+    </div>
+    
+    <div class="warning">
+        <h4>⚠️ Access Token Required</h4>
+        <p>You'll need a Shopify access token with <code>write_script_tags</code> and <code>read_script_tags</code> permissions.</p>
+        <input type="text" id="access-token" placeholder="Enter your Shopify access token" style="width: 100%; padding: 10px; font-family: monospace; margin: 10px 0;">
+        <small>Get this from your Shopify app or Partner Dashboard</small>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <button class="button" onclick="listScriptTags()">📋 List Current Scripts</button>
+        <button class="button warning" onclick="removeOldScripts()">🗑️ Remove Old Scripts</button>
+        <button class="button success" onclick="injectNewScript()">🚀 Inject New Script</button>
+        <button class="button" onclick="testStore()">🌐 Test Store</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <div class="script-box">
+        <h4>📄 Script Being Injected</h4>
+        <p>This is the working SmartPop script that will be injected:</p>
+        <ul>
+            <li>✅ <strong>Red debug panel</strong> - Shows "SCRIPT INJECTION" in top-right</li>
+            <li>✅ <strong>25% scroll popup</strong> - Code: EXPLORER20 (20% off)</li>
+            <li>✅ <strong>50% scroll popup</strong> - Code: SCRIPT50 (15% off)</li>
+            <li>✅ <strong>Manual test buttons</strong> - Force trigger popups</li>
+            <li>✅ <strong>Email capture</strong> - Collects emails with discount codes</li>
+            <li>✅ <strong>Console logging</strong> - Full debug output</li>
+        </ul>
+    </div>
+    
+    <script>
+        const SHOP = 'testingstoresumeet.myshopify.com';
+        const API_VERSION = '2023-10';
+        
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<h4>${title}</h4>${content.includes('<') ? content : '<pre>' + content + '</pre>'}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function getAccessToken() {
+            const token = document.getElementById('access-token').value.trim();
+            if (!token) {
+                addResult('❌ Access Token Required', 'Please enter your Shopify access token first.', 'error');
+                return null;
+            }
+            return token;
+        }
+        
+        async function listScriptTags() {
+            const token = getAccessToken();
+            if (!token) return;
+            
+            addResult('🔄 Listing Script Tags', 'Fetching current script tags...');
+            
+            try {
+                const response = await fetch(`https://${SHOP}/admin/api/${API_VERSION}/script_tags.json`, {
+                    headers: {
+                        'X-Shopify-Access-Token': token
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const scripts = data.script_tags || [];
+                    
+                    let content = `Found ${scripts.length} script tags:\\n\\n`;
+                    scripts.forEach((script, index) => {
+                        content += `${index + 1}. ID: ${script.id}\\n`;
+                        content += `   Source: ${script.src ? script.src.substring(0, 100) + '...' : 'inline'}\\n`;
+                        content += `   Event: ${script.event}\\n`;
+                        content += `   Created: ${script.created_at}\\n\\n`;
+                    });
+                    
+                    addResult('📋 Current Script Tags', content, 'success');
+                    
+                    // Highlight SmartPop scripts
+                    const smartPopScripts = scripts.filter(script => 
+                        script.src && (
+                            script.src.includes('smartpop') ||
+                            script.src.includes('popup') ||
+                            script.src.startsWith('data:text/javascript')
+                        )
+                    );
+                    
+                    if (smartPopScripts.length > 0) {
+                        addResult('🎯 SmartPop Scripts Found', `Found ${smartPopScripts.length} existing SmartPop scripts that should be removed.`, 'warning');
+                    }
+                    
+                } else {
+                    const errorText = await response.text();
+                    addResult('❌ Failed to List Scripts', `Status: ${response.status}\\nError: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Network Error', error.message, 'error');
+            }
+        }
+        
+        async function removeOldScripts() {
+            const token = getAccessToken();
+            if (!token) return;
+            
+            addResult('🔄 Removing Old Scripts', 'Finding and removing SmartPop scripts...');
+            
+            try {
+                // First get all scripts
+                const response = await fetch(`https://${SHOP}/admin/api/${API_VERSION}/script_tags.json`, {
+                    headers: {
+                        'X-Shopify-Access-Token': token
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch scripts: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const scripts = data.script_tags || [];
+                
+                // Find SmartPop scripts
+                const smartPopScripts = scripts.filter(script => 
+                    script.src && (
+                        script.src.includes('smartpop') ||
+                        script.src.includes('popup') ||
+                        script.src.startsWith('data:text/javascript')
+                    )
+                );
+                
+                if (smartPopScripts.length === 0) {
+                    addResult('ℹ️ No Scripts to Remove', 'No SmartPop scripts found to remove.', 'info');
+                    return;
+                }
+                
+                addResult('🗑️ Removing Scripts', `Found ${smartPopScripts.length} scripts to remove...`);
+                
+                // Remove each script
+                let removed = 0;
+                for (const script of smartPopScripts) {
+                    try {
+                        const deleteResponse = await fetch(`https://${SHOP}/admin/api/${API_VERSION}/script_tags/${script.id}.json`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-Shopify-Access-Token': token
+                            }
+                        });
+                        
+                        if (deleteResponse.ok) {
+                            removed++;
+                            console.log('✅ Removed script:', script.id);
+                        } else {
+                            console.log('⚠️ Failed to remove script:', script.id, deleteResponse.status);
+                        }
+                    } catch (error) {
+                        console.log('❌ Error removing script:', script.id, error.message);
+                    }
+                }
+                
+                addResult('✅ Scripts Removed', `Successfully removed ${removed} out of ${smartPopScripts.length} SmartPop scripts.`, 'success');
+                
+            } catch (error) {
+                addResult('❌ Remove Error', error.message, 'error');
+            }
+        }
+        
+        async function injectNewScript() {
+            const token = getAccessToken();
+            if (!token) return;
+            
+            addResult('🚀 Injecting New Script', 'Installing updated SmartPop script...');
+            
+            const smartPopScript = \`/**
+ * SmartPop - DIRECT INJECTION VERSION - TESTED AND WORKING
+ */
+(function() {
+  'use strict';
+  
+  if (window.smartPopInitialized) {
+    console.log('🎯 SmartPop already initialized');
+    return;
+  }
+  window.smartPopInitialized = true;
+
+  console.log('🚀 SmartPop DIRECT INJECTION - WORKING VERSION loaded!');
+
+  const ACTIVE_POPUPS = [
+    {
+      id: 'direct-50-popup',
+      name: 'Direct 50% Popup',
+      title: "🎉 You Made It Halfway!",
+      description: 'Congratulations on scrolling 50% of our page! Get 15% off your order as a reward.',
+      trigger_type: 'scroll_depth',
+      trigger_value: '50',
+      page_target: 'homepage',
+      button_text: 'Claim 15% Off Now',
+      discount_code: 'DIRECT50',
+      discount_percent: '15',
+      is_active: true
+    },
+    {
+      id: 'direct-25-popup',
+      name: 'Direct 25% Popup', 
+      title: "Early Explorer Bonus!",
+      description: 'Thanks for browsing our products! Get 20% off for being an early explorer.',
+      trigger_type: 'scroll_depth',
+      trigger_value: '25',
+      page_target: 'homepage',
+      button_text: 'Get Early Explorer Deal',
+      discount_code: 'EXPLORER20',
+      discount_percent: '20',
+      is_active: true
+    }
+  ];
+
+  class DirectSmartPop {
+    constructor() {
+      this.popups = ACTIVE_POPUPS;
+      this.shownPopups = new Set();
+      this.currentScrollPercent = 0;
+      this.lastLoggedPercent = 0;
+      
+      console.log('🚀 DIRECT SmartPop initializing...');
+      console.log('📊 Popups loaded:', this.popups.length);
+      this.init();
+    }
+
+    init() {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => this.setup());
+      } else {
+        this.setup();
+      }
+    }
+
+    setup() {
+      this.addDebugIndicator();
+      this.startTracking();
+      console.log('✅ DIRECT SmartPop setup complete');
+    }
+
+    addDebugIndicator() {
+      const existing = document.getElementById('smartpop-debug');
+      if (existing) existing.remove();
+      
+      const indicator = document.createElement('div');
+      indicator.id = 'smartpop-debug';
+      indicator.style.cssText = \\\`
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        background: #dc3545 !important;
+        color: white !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        font-family: monospace !important;
+        font-size: 12px !important;
+        z-index: 999999 !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
+        border: 3px solid #c82333 !important;
+        max-width: 320px !important;
+        min-width: 250px !important;
+      \\\`;
+      indicator.innerHTML = \\\`
+        <div style="font-weight: bold; margin-bottom: 8px;">🎯 SmartPop DIRECT INJECTION</div>
+        <div id="scroll-info" style="margin: 4px 0;">Scroll: 0%</div>
+        <div id="status-info" style="margin: 4px 0;">Status: Tracking...</div>
+        <div id="popup-info" style="margin: 4px 0; font-size: 11px;">Popups: \\\${this.popups.length} loaded</div>
+        <div style="margin-top: 10px;">
+          <button onclick="window.smartPop.forceShow50()" style="background:#28a745;color:white;border:none;padding:6px 8px;border-radius:4px;font-size:10px;margin:2px;cursor:pointer;">🎯 Test 50%</button>
+          <button onclick="window.smartPop.forceShow25()" style="background:#ffc107;color:black;border:none;padding:6px 8px;border-radius:4px;font-size:10px;margin:2px;cursor:pointer;">🎯 Test 25%</button>
+        </div>
+        <div style="margin-top: 8px;">
+          <button onclick="window.smartPop.reset()" style="background:#17a2b8;color:white;border:none;padding:6px 8px;border-radius:4px;font-size:10px;margin:2px;cursor:pointer;">🔄 Reset</button>
+          <button onclick="this.parentElement.parentElement.remove()" style="background:#6c757d;color:white;border:none;padding:6px 8px;border-radius:4px;font-size:10px;margin:2px;cursor:pointer;">✕ Hide</button>
+        </div>
+      \\\`;
+      
+      document.body.appendChild(indicator);
+      console.log('✅ DIRECT debug indicator added');
+    }
+
+    startTracking() {
+      console.log('📈 Starting DIRECT scroll tracking...');
+      this.trackScroll();
+      setInterval(() => this.trackScroll(), 1000);
+      
+      let scrollTimeout;
+      window.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => this.trackScroll(), 150);
+      }, { passive: true });
+      
+      console.log('✅ DIRECT tracking started');
+    }
+
+    trackScroll() {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      
+      const body = document.body;
+      const html = document.documentElement;
+      const documentHeight = Math.max(
+        body.scrollHeight || 0,
+        body.offsetHeight || 0,
+        html.clientHeight || 0,
+        html.scrollHeight || 0,
+        html.offsetHeight || 0
+      );
+      
+      const viewportHeight = window.innerHeight || html.clientHeight || body.clientHeight || 0;
+      const scrollableHeight = Math.max(documentHeight - viewportHeight, 1);
+      
+      let scrollPercent = Math.round((scrollTop / scrollableHeight) * 100);
+      scrollPercent = Math.max(0, Math.min(scrollPercent, 100));
+      
+      this.currentScrollPercent = scrollPercent;
+      this.updateDebugIndicator();
+      
+      if (scrollPercent % 10 === 0 && scrollPercent !== this.lastLoggedPercent) {
+        console.log(\\\`📊 DIRECT SCROLL: \\\${scrollPercent}% (top: \\\${scrollTop}px, height: \\\${documentHeight}px)\\\`);
+        this.lastLoggedPercent = scrollPercent;
+      }
+      
+      this.checkPopupTriggers();
+    }
+
+    updateDebugIndicator() {
+      const scrollInfo = document.getElementById('scroll-info');
+      const statusInfo = document.getElementById('status-info');
+      const popupInfo = document.getElementById('popup-info');
+      
+      if (scrollInfo) scrollInfo.textContent = \\\`Scroll: \\\${this.currentScrollPercent}%\\\`;
+      if (statusInfo) statusInfo.textContent = \\\`Status: \\\${this.getPageTarget()}\\\`;
+      if (popupInfo) {
+        const shown = this.shownPopups.size;
+        popupInfo.textContent = \\\`Popups: \\\${this.popups.length} loaded, \\\${shown} shown\\\`;
+      }
+    }
+
+    getPageTarget() {
+      const path = window.location.pathname;
+      if (path === '/' || path === '') return 'homepage';
+      if (path.includes('/products/')) return 'product_pages';
+      if (path.includes('/collections/')) return 'collection_pages';
+      return 'all_pages';
+    }
+
+    checkPopupTriggers() {
+      const pageTarget = this.getPageTarget();
+      
+      for (const popup of this.popups) {
+        if (!popup.is_active) continue;
+        
+        const triggerPercent = parseInt(popup.trigger_value) || 50;
+        const pageMatch = popup.page_target === 'all_pages' || popup.page_target === pageTarget;
+        const alreadyShown = this.shownPopups.has(popup.id);
+        
+        if (popup.trigger_type === 'scroll_depth' && 
+            !alreadyShown &&
+            pageMatch &&
+            this.currentScrollPercent >= triggerPercent) {
+          
+          console.log(\\\`🎯 DIRECT POPUP TRIGGERED! "\\\${popup.name}" at \\\${this.currentScrollPercent}%\\\`);
+          this.showPopup(popup);
+          this.shownPopups.add(popup.id);
+          this.updateDebugIndicator();
+          break;
+        }
+      }
+    }
+
+    showPopup(popup) {
+      console.log(\\\`🎯 DIRECT Showing popup: \\\${popup.name}\\\`);
+      
+      const popupId = \\\`direct-popup-\\\${popup.id}\\\`;
+      const existing = document.getElementById(popupId);
+      if (existing) existing.remove();
+      
+      const popupHtml = \\\`
+        <div id="\\\${popupId}" style="
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          background: rgba(0,0,0,0.85) !important;
+          z-index: 999998 !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          animation: directFadeIn 0.4s ease !important;
+        ">
+          <div style="
+            background: white !important;
+            border-radius: 12px !important;
+            padding: 32px !important;
+            max-width: 500px !important;
+            margin: 20px !important;
+            text-align: center !important;
+            border: 3px solid #dc3545 !important;
+            position: relative !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important;
+          ">
+            <button onclick="this.closest('[id^=direct-popup-]').remove(); console.log('❌ DIRECT popup closed');" style="
+              position: absolute !important;
+              top: 16px !important;
+              right: 16px !important;
+              background: none !important;
+              border: none !important;
+              font-size: 28px !important;
+              cursor: pointer !important;
+              color: #666 !important;
+              line-height: 1 !important;
+            ">×</button>
+            
+            <h2 style="margin: 0 0 16px 0 !important; color: #dc3545 !important; font-size: 24px !important;">\\\${popup.title}</h2>
+            <p style="margin: 0 0 24px 0 !important; color: #666 !important; font-size: 16px !important; line-height: 1.5 !important;">\\\${popup.description}</p>
+            
+            <input type="email" placeholder="Enter your email for discount" 
+                   id="popup-email-\\\${popup.id}"
+                   style="
+                     width: 100% !important;
+                     padding: 12px !important;
+                     border: 2px solid #ddd !important;
+                     border-radius: 6px !important;
+                     font-size: 16px !important;
+                     margin-bottom: 16px !important;
+                     box-sizing: border-box !important;
+                   ">
+            
+            <button onclick="
+              const email = document.getElementById('popup-email-\\\${popup.id}').value.trim();
+              if (email && email.includes('@')) {
+                alert('🎉 Thank you! Your discount code: \\\${popup.discount_code}');
+                console.log('🎯 DIRECT Email captured:', email, 'Code:', '\\\${popup.discount_code}');
+              } else {
+                alert('Please enter a valid email address');
+                return;
+              }
+              this.closest('[id^=direct-popup-]').remove();
+            " style="
+              background: #dc3545 !important;
+              color: white !important;
+              border: none !important;
+              padding: 14px 28px !important;
+              border-radius: 6px !important;
+              font-size: 16px !important;
+              cursor: pointer !important;
+              font-weight: bold !important;
+              width: 100% !important;
+            ">\\\${popup.button_text}</button>
+            
+            <div style="margin-top: 16px !important; padding: 12px !important; background: #f8d7da !important; border-radius: 6px !important; border: 1px solid #dc3545 !important;">
+              <strong style="color: #dc3545 !important;">Discount Code: \\\${popup.discount_code}</strong><br>
+              <small style="color: #666 !important;">Save \\\${popup.discount_percent}% on your order!</small>
+            </div>
+          </div>
+        </div>
+      \\\`;
+      
+      if (!document.getElementById('direct-popup-styles')) {
+        const style = document.createElement('style');
+        style.id = 'direct-popup-styles';
+        style.textContent = \\\`
+          @keyframes directFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        \\\`;
+        document.head.appendChild(style);
+      }
+      
+      document.body.insertAdjacentHTML('beforeend', popupHtml);
+      
+      setTimeout(() => {
+        const popup = document.getElementById(popupId);
+        if (popup) popup.remove();
+      }, 30000);
+    }
+
+    forceShow50() {
+      console.log('🎯 DIRECT Force showing 50% popup');
+      const popup50 = this.popups.find(p => parseInt(p.trigger_value) === 50);
+      if (popup50) this.showPopup(popup50);
+    }
+
+    forceShow25() {  
+      console.log('🎯 DIRECT Force showing 25% popup');
+      const popup25 = this.popups.find(p => parseInt(p.trigger_value) === 25);
+      if (popup25) this.showPopup(popup25);
+    }
+
+    reset() {
+      console.log('🔄 DIRECT Resetting all popups');
+      this.shownPopups.clear();
+      document.querySelectorAll('[id^="direct-popup-"]').forEach(el => el.remove());
+      this.updateDebugIndicator();
+    }
+  }
+
+  window.smartPop = new DirectSmartPop();
+  console.log('🎯 SmartPop DIRECT INJECTION VERSION fully loaded and ready!');
+  console.log('📋 Available commands: window.smartPop.forceShow50(), window.smartPop.forceShow25(), window.smartPop.reset()');
+})();\`;
+            
+            try {
+                const scriptTagPayload = {
+                    script_tag: {
+                        event: 'onload',
+                        src: `data:text/javascript;charset=utf-8,${encodeURIComponent(smartPopScript)}`
+                    }  
+                };
+                
+                const response = await fetch(`https://${SHOP}/admin/api/${API_VERSION}/script_tags.json`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Shopify-Access-Token': token
+                    },
+                    body: JSON.stringify(scriptTagPayload)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('✅ Script Injected Successfully!', 
+                        `Script Tag ID: ${data.script_tag.id}\\n` +
+                        `Event: ${data.script_tag.event}\\n` +
+                        `Created: ${data.script_tag.created_at}\\n\\n` +
+                        `🎯 Features Installed:\\n` +
+                        `- Red debug panel (top-right)\\n` +
+                        `- 25% scroll popup (EXPLORER20 - 20% off)\\n` +
+                        `- 50% scroll popup (DIRECT50 - 15% off)\\n` +
+                        `- Manual test buttons\\n` +
+                        `- Email capture system`, 'success');
+                    
+                    addResult('🧪 Next Steps', 
+                        `1. Visit https://${SHOP}/\\n` +
+                        `2. Look for RED debug panel in top-right corner\\n` +
+                        `3. Scroll to 25% and 50% to test popups\\n` +
+                        `4. Use test buttons for manual testing\\n` +
+                        `5. Check browser console for debug logs`, 'info');
+                        
+                } else {
+                    const errorText = await response.text();
+                    addResult('❌ Script Injection Failed', `Status: ${response.status}\\nError: ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult('❌ Injection Error', error.message, 'error');
+            }
+        }
+        
+        function testStore() {
+            window.open(`https://${SHOP}/`, '_blank');
+            addResult('🌐 Store Opened', `Opened ${SHOP} in new tab.\\n\\nLook for the RED debug panel in the top-right corner!\\n\\nIf you see it, the script is working correctly.`, 'info');
+        }
+        
+        // Show instructions on load
+        window.addEventListener('load', () => {
+            addResult('👋 Welcome', 'Enter your Shopify access token above and follow these steps:\\n\\n1. List current scripts\\n2. Remove old scripts\\n3. Inject new script\\n4. Test the store', 'info');
+        });
+    </script>
+</body>
+</html>

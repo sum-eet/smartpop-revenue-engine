@@ -1,0 +1,16 @@
+{
+  "action": "save",
+  "name": "Scroll 50% Popup",
+  "title": "Wait! Don't Leave Empty Handed!",
+  "description": "Get 15% off your first order when you scroll down and discover our products",
+  "trigger_type": "scroll_depth",
+  "trigger_value": "50",
+  "page_target": "homepage",
+  "popup_type": "discount_offer",
+  "button_text": "Claim 15% Off",
+  "email_placeholder": "Enter email for discount",
+  "discount_code": "SCROLL15",
+  "discount_percent": "15",
+  "is_active": true,
+  "shop_domain": "testingstoresumeet.myshopify.com"
+}

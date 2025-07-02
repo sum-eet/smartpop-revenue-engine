@@ -1,0 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "d7bfdbad9277b52215d6e9dcf936f068"
+application_url = "https://smartpop-revenue-engine.vercel.app/install"
+embedded = true
+name = "Smart Popup2"
+handle = "smart-popup2"
+
+# Required API access scopes for SmartPop functionality
+scopes = "write_script_tags,read_script_tags,read_themes,write_themes"
+
+[webhooks]
+api_version = "2025-04"
+
+[auth]
+redirect_urls = [
+  "https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth"
+]
+
+[pos]
+embedded = false

@@ -107,7 +107,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
     try {
       const url = editingPopup 
         ? 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-edit'
-        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-create';
+        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-create-simple';
       
       const body = editingPopup 
         ? { ...formData, id: editingPopup.id }
