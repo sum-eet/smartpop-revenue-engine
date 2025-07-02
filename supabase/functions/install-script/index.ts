@@ -107,7 +107,22 @@ serve(async (req) => {
   }
   window.smartPopInitialized = true;
 
-  console.log('🚀 SmartPop SCRIPT INJECTION - WORKING VERSION loaded!');
+  // CRITICAL: Don't run on admin/app pages
+  const currentUrl = window.location.href;
+  const currentPath = window.location.pathname;
+  
+  // Skip if on admin pages or app pages
+  if (currentPath.includes('/admin') || 
+      currentPath.includes('/apps') ||
+      currentUrl.includes('shopifyapp.com') ||
+      currentUrl.includes('claude.ai') ||
+      document.querySelector('meta[name="shopify-checkout-api-token"]') ||
+      document.querySelector('[data-shopify-app]')) {
+    console.log('🚫 SmartPop: Skipping admin/app page:', currentPath);
+    return;
+  }
+
+  console.log('🚀 SmartPop SCRIPT INJECTION - Customer Store Page Detected:', currentPath);
 
   const ACTIVE_POPUPS = [
     {
