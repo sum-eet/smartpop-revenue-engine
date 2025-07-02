@@ -40,6 +40,17 @@ export async function validateAuth(req: Request): Promise<{
   console.log(`[${timestamp}] API Key provided:`, !!apiKey)
   console.log(`[${timestamp}] Shop Domain:`, shopDomain)
   
+  // DEVELOPMENT BYPASS: Allow test-key for development
+  if (apiKey === 'test-key' && shopDomain === 'testingstoresumeet.myshopify.com') {
+    console.log(`[${timestamp}] AUTH SUCCESS: Development bypass`)
+    return {
+      success: true,
+      shopDomain: shopDomain,
+      apiKey: apiKey,
+      rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+    }
+  }
+  
   if (!apiKey || !shopDomain) {
     console.log(`[${timestamp}] AUTH FAILED: Missing headers`)
     return {
