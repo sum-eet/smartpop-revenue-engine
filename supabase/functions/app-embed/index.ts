@@ -86,24 +86,51 @@ function generateEmbedScript(shop: string, popups: any[], debug: boolean = false
   }
   window.smartPopInitialized = true;
 
-  // CRITICAL: Don't run on admin/app pages
-  const currentUrl = window.location.href;
-  const currentPath = window.location.pathname;
-  
-  // Skip if on admin pages or app pages
-  if (currentPath.includes('/admin') || 
-      currentPath.includes('/apps') ||
-      currentUrl.includes('shopifyapp.com') ||
-      currentUrl.includes('claude.ai') ||
-      currentUrl.includes('partners.shopify.com') ||
-      document.querySelector('meta[name="shopify-checkout-api-token"]') ||
-      document.querySelector('[data-shopify-app]') ||
-      document.querySelector('body[data-env="development"]')) {
-    console.log('🚫 SmartPop: Skipping admin/app page:', currentPath);
+  // ENHANCED ADMIN DETECTION - Block ALL admin/app contexts
+  function shouldSkipPopup() {
+    const currentUrl = window.location.href;
+    const currentPath = window.location.pathname;
+    const hostname = window.location.hostname;
+    
+    const adminPatterns = ['/admin', '/apps', '/account', '/oauth', '/login', '/checkout'];
+    const adminDomains = ['shopifyapp.com', 'claude.ai', 'partners.shopify.com', 'admin.shopify.com', 'accounts.shopify.com', 'app.shopify.com'];
+    
+    for (const pattern of adminPatterns) {
+      if (currentPath.includes(pattern)) {
+        console.log('🚫 SmartPop: Blocked admin path:', currentPath);
+        return true;
+      }
+    }
+    
+    for (const domain of adminDomains) {
+      if (hostname.includes(domain) || currentUrl.includes(domain)) {
+        console.log('🚫 SmartPop: Blocked admin domain:', hostname);
+        return true;
+      }
+    }
+    
+    if (document.querySelector('meta[name="shopify-checkout-api-token"]') ||
+        document.querySelector('[data-shopify-app]') ||
+        document.querySelector('body[data-env="development"]') ||
+        document.querySelector('#shopify-app') ||
+        document.querySelector('.shopify-admin') ||
+        document.querySelector('[data-shopify-admin]')) {
+      console.log('🚫 SmartPop: Blocked admin element detected');
+      return true;
+    }
+    
+    if (window !== window.top) {
+      console.log('🚫 SmartPop: Blocked iframe context');
+      return true;
+    }
+    
+    console.log('✅ SmartPop: Customer store page confirmed:', currentPath);
+    return false;
+  }
+
+  if (shouldSkipPopup()) {
     return;
   }
-  
-  console.log('🚀 SmartPop: Customer store page detected:', currentPath);
 
   const SMARTPOP_CONFIG = {
     shop: '${shop}',
