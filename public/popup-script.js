@@ -2,10 +2,28 @@
 (function() {
   'use strict';
 
+  // CRITICAL: Don't run on admin/app pages
+  const currentUrl = window.location.href;
+  const currentPath = window.location.pathname;
+  
+  // Skip if on admin pages or app pages
+  if (currentPath.includes('/admin') || 
+      currentPath.includes('/apps') ||
+      currentUrl.includes('shopifyapp.com') ||
+      currentUrl.includes('claude.ai') ||
+      currentUrl.includes('partners.shopify.com') ||
+      document.querySelector('meta[name="shopify-checkout-api-token"]') ||
+      document.querySelector('[data-shopify-app]') ||
+      document.querySelector('body[data-env="development"]')) {
+    console.log('🚫 SmartPop: Skipping admin/app page:', currentPath);
+    return;
+  }
+
   // Configuration
   const API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
   const SHOP_DOMAIN = window.Shopify ? window.Shopify.shop : window.location.hostname;
   
+  console.log('🚀 SmartPop: Customer store page detected:', currentPath);
   console.log('SmartPop SDK initialized for shop:', SHOP_DOMAIN);
 
   // Visitor behavior tracking
