@@ -36,3 +36,15 @@ verify_jwt = false
 
 [functions.install-direct]
 verify_jwt = false
+
+[functions.popup-script]
+verify_jwt = false
+
+[functions.popup-embed-public]
+verify_jwt = false
+
+[functions.install-script-direct]
+verify_jwt = false
+
+[functions.install-script-public]
+verify_jwt = false

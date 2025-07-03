@@ -30,7 +30,9 @@ serve(async (req) => {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/javascript',
-          'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       })
     }
@@ -57,6 +59,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
  * SmartPop Revenue Engine - Public Embed Script
  * Shop: ${shop}
  * Generated: ${new Date().toISOString()}
+ * Version: 2.0 - Fixed scope issues
  */
 
 (function() {

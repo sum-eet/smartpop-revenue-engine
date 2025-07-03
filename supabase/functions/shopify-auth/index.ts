@@ -73,7 +73,7 @@ serve(async (req) => {
               body: JSON.stringify({
                 script_tag: {
                   event: 'onload',
-                  src: 'https://smartpop-revenue-engine.vercel.app/popup-script.js'
+                  src: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=${shop}`
                 }
               })
             })
