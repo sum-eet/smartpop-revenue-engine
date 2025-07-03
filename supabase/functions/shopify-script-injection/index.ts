@@ -40,7 +40,7 @@ serve(async (req) => {
       const scriptTag = {
         script_tag: {
           event: 'onload',
-          src: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/app-embed?shop=${encodeURIComponent(shopDomain)}&t=${Date.now()}`,
+          src: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=${encodeURIComponent(shopDomain)}&t=${Date.now()}`,
           display_scope: 'all'
         }
       }
@@ -88,7 +88,7 @@ serve(async (req) => {
         message: 'Script injection configured',
         shop_domain: shopDomain,
         script_url: scriptTag.script_tag.src,
-        embed_url: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/app-embed?shop=${encodeURIComponent(shopDomain)}`,
+        embed_url: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=${encodeURIComponent(shopDomain)}`,
         instructions: {
           manual_method: 'Add this script tag to your theme',
           script_tag: `<script src="${scriptTag.script_tag.src}" async></script>`,
@@ -129,7 +129,7 @@ serve(async (req) => {
         shop_domain: shopDomain,
         script_injected: (scriptRecords && scriptRecords.length > 0),
         script_records: scriptRecords || [],
-        embed_url: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/app-embed?shop=${encodeURIComponent(shopDomain)}`,
+        embed_url: `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=${encodeURIComponent(shopDomain)}`,
         manual_install: `<script src="https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/app-embed?shop=${encodeURIComponent(shopDomain)}" async></script>`,
         timestamp
       }), {
