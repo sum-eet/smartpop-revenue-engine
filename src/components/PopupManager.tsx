@@ -30,6 +30,38 @@ interface PopupConfig {
 }
 
 export const PopupManager: React.FC = () => {
+  // CRITICAL ADMIN DETECTION - Block popups on admin pages
+  const shouldSkipPopup = () => {
+    const hostname = window.location.hostname;
+    const currentPath = window.location.pathname;
+    
+    // Block admin.shopify.com domain
+    if (hostname === 'admin.shopify.com') {
+      console.log('🚫 SmartPop: Blocked admin.shopify.com domain');
+      return true;
+    }
+    
+    // Block admin paths
+    if (currentPath.includes('/admin') || currentPath.includes('/apps')) {
+      console.log('🚫 SmartPop: Blocked admin path:', currentPath);
+      return true;
+    }
+    
+    // Block if in iframe (likely admin)
+    if (window !== window.top) {
+      console.log('🚫 SmartPop: Blocked iframe context');
+      return true;
+    }
+    
+    console.log('✅ SmartPop: Customer page confirmed');
+    return false;
+  };
+
+  // Skip all popup functionality if on admin page
+  if (shouldSkipPopup()) {
+    return null;
+  }
+
   const [activePopup, setActivePopup] = useState<PopupConfig | null>(null);
   const [shownPopups, setShownPopups] = useState<Set<string>>(new Set());
   const [behavior, setBehavior] = useState<VisitorBehavior>({
