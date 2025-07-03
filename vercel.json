@@ -2,15 +2,28 @@
 {
   "rewrites": [
     {
-      "source": "/popup-script.js",
-      "destination": "/popup-script.js"
-    },
-    {
       "source": "/((?!popup-script\\.js$).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/popup-script.js",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
