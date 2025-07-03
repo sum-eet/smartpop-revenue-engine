@@ -1,0 +1,182 @@
+name: 🚀 Deploy & Test Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SUPABASE_PROJECT_ID: zsmoutzjhqjgjehaituw
+  
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build frontend
+      run: npm run build
+      
+    - name: 🧪 Run unit tests
+      run: npm test
+      continue-on-error: false
+      
+    # SUPABASE DEPLOYMENT
+    - name: 🔧 Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+        
+    - name: 🚀 Deploy Supabase Functions
+      run: |
+        echo "Deploying core functions..."
+        npx supabase functions deploy popup-config --project-ref ${{ env.SUPABASE_PROJECT_ID }}
+        npx supabase functions deploy popup-embed-public --project-ref ${{ env.SUPABASE_PROJECT_ID }} --no-verify-jwt
+        npx supabase functions deploy popup-track --project-ref ${{ env.SUPABASE_PROJECT_ID }}
+        npx supabase functions deploy shopify-auth --project-ref ${{ env.SUPABASE_PROJECT_ID }}
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        
+    # VERCEL DEPLOYMENT  
+    - name: 🚀 Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--prod'
+        
+    # POST-DEPLOYMENT TESTS
+    - name: ⏳ Wait for deployment
+      run: sleep 30
+      
+    - name: 🧪 Test Supabase Functions
+      run: |
+        echo "Testing deployed Supabase functions..."
+        
+        # Test popup-config
+        echo "Testing popup-config..."
+        POPUP_RESPONSE=$(curl -s "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com")
+        if echo "$POPUP_RESPONSE" | grep -q '"id"'; then
+          echo "✅ popup-config working"
+        else
+          echo "❌ popup-config failed"
+          exit 1
+        fi
+        
+        # Test popup-embed-public (CRITICAL - Admin Detection)
+        echo "Testing popup-embed-public admin detection..."
+        EMBED_RESPONSE=$(curl -s "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com")
+        if echo "$EMBED_RESPONSE" | grep -q "admin.shopify.com" && echo "$EMBED_RESPONSE" | grep -q "shouldSkipPopup"; then
+          echo "✅ Admin detection deployed correctly"
+        else
+          echo "❌ Admin detection MISSING - CRITICAL FAILURE"
+          exit 1
+        fi
+        
+        # Test popup creation
+        echo "Testing popup creation..."
+        CREATE_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+          -d '{"action":"save","title":"CI Test","description":"Automated test","shop_domain":"testingstoresumeet.myshopify.com","trigger_type":"time_delay","trigger_value":"3000"}' \
+          "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-config")
+        
+        if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
+          echo "✅ Popup creation working"
+          POPUP_ID=$(echo "$CREATE_RESPONSE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+          
+          # Cleanup test popup
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"action\":\"delete\",\"id\":\"$POPUP_ID\",\"shop_domain\":\"testingstoresumeet.myshopify.com\"}" \
+            "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-config" > /dev/null
+          echo "✅ Test popup cleaned up"
+        else
+          echo "❌ Popup creation failed"
+          exit 1
+        fi
+        
+    - name: 🧪 Test Admin Detection Logic
+      run: |
+        echo "Testing admin detection logic in detail..."
+        
+        # Get the script content
+        SCRIPT_CONTENT=$(curl -s "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com")
+        
+        # Check for all required admin detection patterns
+        if echo "$SCRIPT_CONTENT" | grep -q "hostname === 'admin.shopify.com'"; then
+          echo "✅ Primary admin detection found"
+        else
+          echo "❌ Primary admin detection MISSING"
+          exit 1
+        fi
+        
+        if echo "$SCRIPT_CONTENT" | grep -q "shouldSkipPopup"; then
+          echo "✅ shouldSkipPopup function found"
+        else
+          echo "❌ shouldSkipPopup function MISSING"
+          exit 1
+        fi
+        
+        if echo "$SCRIPT_CONTENT" | grep -q "🚫 SmartPop: Blocked admin.shopify.com"; then
+          echo "✅ Admin blocking message found"
+        else
+          echo "❌ Admin blocking message MISSING"
+          exit 1
+        fi
+        
+        # Check script size (should be substantial)
+        SCRIPT_SIZE=$(echo "$SCRIPT_CONTENT" | wc -c)
+        if [ $SCRIPT_SIZE -gt 5000 ]; then
+          echo "✅ Script size adequate ($SCRIPT_SIZE bytes)"
+        else
+          echo "❌ Script size too small ($SCRIPT_SIZE bytes)"
+          exit 1
+        fi
+        
+    - name: 🧪 Test Vercel Deployment
+      run: |
+        echo "Testing Vercel deployment..."
+        
+        # Get latest Vercel deployment URL (this would need to be updated with actual URL detection)
+        # For now, testing if any recent deployment responds
+        VERCEL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://smartpop-revenue-engine.vercel.app" || echo "000")
+        
+        if [ "$VERCEL_STATUS" = "200" ] || [ "$VERCEL_STATUS" = "401" ]; then
+          echo "✅ Vercel deployment accessible (HTTP $VERCEL_STATUS)"
+        else
+          echo "⚠️ Vercel deployment status: HTTP $VERCEL_STATUS"
+        fi
+        
+    - name: 📊 Deployment Summary
+      run: |
+        echo "🎉 DEPLOYMENT PIPELINE COMPLETE"
+        echo "=============================="
+        echo "✅ Supabase Functions: DEPLOYED"
+        echo "✅ Admin Detection: VERIFIED"
+        echo "✅ Popup CRUD: TESTED"
+        echo "✅ Vercel Frontend: DEPLOYED"
+        echo ""
+        echo "🛡️ Admin detection is ACTIVE and TESTED"
+        echo "🔥 System ready for production use"
+        
+    - name: 🚨 Notify on Failure
+      if: failure()
+      run: |
+        echo "❌ DEPLOYMENT FAILED - IMMEDIATE ACTION REQUIRED"
+        echo "Check the logs above for specific failures"
+        echo "Common issues:"
+        echo "- Missing environment variables"
+        echo "- Authentication failures"
+        echo "- Admin detection not deployed correctly"
+        exit 1

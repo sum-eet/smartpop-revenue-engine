@@ -5,10 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "jest",
+    "test:deployment": "jest tests/deployment/automated/",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:supabase": "npx supabase functions deploy popup-config popup-embed-public popup-track shopify-auth --project-ref zsmoutzjhqjgjehaituw",
+    "deploy:vercel": "vercel deploy --prod",
+    "verify:deployment": "npm run test:deployment",
+    "ci": "npm test && npm run test:deployment"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -79,6 +86,26 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^23.0.1",
+    "node-fetch": "^3.3.2",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.5.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "supabase/functions/**/*.{js,ts}",
+      "!src/index.js",
+      "!src/serviceWorker.js"
+    ]
   }
 }
