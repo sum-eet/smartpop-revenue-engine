@@ -105,20 +105,25 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
     setIsSubmitting(true);
     
     try {
-      const url = editingPopup 
-        ? 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-edit'
-        : 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-create-simple';
+      const url = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config';
       
       const body = editingPopup 
-        ? { ...formData, id: editingPopup.id }
-        : formData;
+        ? { 
+            action: 'save',
+            id: editingPopup.id,
+            ...formData,
+            shop_domain: 'testingstoresumeet.myshopify.com'
+          }
+        : { 
+            action: 'save',
+            ...formData,
+            shop_domain: 'testingstoresumeet.myshopify.com'
+          };
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-shop-domain': 'testingstoresumeet.myshopify.com',
-          'x-api-key': 'test-key'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
       });
