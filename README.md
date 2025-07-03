@@ -1,73 +1,200 @@
-# Welcome to your Lovable project
+# SmartPop Revenue Engine
 
-## Project info
+A Shopify app that displays targeted popups on customer store pages to increase conversions, with intelligent admin detection to prevent popups on Shopify admin pages.
 
-**URL**: https://lovable.dev/projects/d8af5483-1058-4427-b5d0-1d56bff6f45a
+## Quick Start
 
-## How can I edit this code?
+### Prerequisites
+- Node.js 18+
+- Supabase CLI
+- Vercel CLI
+- Shopify Partner Account
 
-There are several ways of editing your application.
+### Installation
 
-**Use Lovable**
+1. **Clone and setup**:
+```bash
+git clone <repository>
+cd smartpop-revenue-engine
+npm install
+```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d8af5483-1058-4427-b5d0-1d56bff6f45a) and start prompting.
+2. **Configure environment**:
+```bash
+cp .env.example .env.local
+# Edit .env.local with your credentials
+```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. **Deploy backend**:
+```bash
+npx supabase functions deploy popup-config --project-ref YOUR_PROJECT_ID
+npx supabase functions deploy popup-embed-public --project-ref YOUR_PROJECT_ID --no-verify-jwt
+npx supabase db push --project-ref YOUR_PROJECT_ID
+```
 
-**Use your preferred IDE**
+4. **Deploy frontend**:
+```bash
+npm run build
+vercel deploy --prod
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+5. **Configure Shopify app**:
+- Update `shopify.app.toml` with your app credentials
+- Set redirect URLs in Shopify Partner Dashboard
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## How It Works
 
-Follow these steps:
+### For Store Owners:
+1. Install SmartPop app from Shopify App Store
+2. Create popups using the dashboard
+3. Popups automatically appear on customer store pages
+4. View analytics and conversion metrics
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### For Customers:
+1. Visit Shopify store
+2. Popup appears based on triggers (time, scroll, exit intent)
+3. Enter email to get discount
+4. Popup never appears on admin pages
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Technical Flow:
+```
+Store Owner → Creates Popup → Saves to Database → Script Updates → Customer Sees Popup
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Core Features
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### ✅ Popup Management
+- Create, edit, delete popups
+- Multiple trigger types (time, scroll, exit intent)
+- Customizable content and styling
+- A/B testing capabilities
+
+### ✅ Smart Targeting
+- Page-specific targeting (homepage, product pages, etc.)
+- Customer behavior triggers
+- First-time visitor detection
+
+### ✅ Admin Protection
+- Intelligent detection of Shopify admin pages
+- Domain-based blocking (`admin.shopify.com`)
+- Path-based detection (`/admin`, `/apps`)
+- Iframe and DOM-based detection
+
+### ✅ Analytics
+- Popup view tracking
+- Conversion rate monitoring
+- Email capture analytics
+- Real-time dashboard
+
+## API Endpoints
+
+### Public Endpoints:
+- `GET /functions/v1/popup-embed-public?shop=SHOP_DOMAIN` - Popup script for stores
+- `POST /functions/v1/popup-track` - Event tracking
+
+### Authenticated Endpoints:
+- `POST /functions/v1/popup-config` - Popup CRUD operations
+- `GET /functions/v1/shopify-auth` - OAuth handling
+
+## Development
+
+### Start development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Deploy functions:
+```bash
+npx supabase functions deploy FUNCTION_NAME --project-ref PROJECT_ID
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Run tests:
+```bash
+npm test
+```
 
-**Use GitHub Codespaces**
+### Database migrations:
+```bash
+npx supabase db push
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Architecture
 
-## What technologies are used for this project?
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed technical documentation.
 
-This project is built with:
+### Key Components:
+- **Frontend**: React dashboard hosted on Vercel
+- **Backend**: Supabase Edge Functions
+- **Database**: PostgreSQL on Supabase
+- **Integration**: Shopify Script Tags API
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Configuration
 
-## How can I deploy this project?
+### Shopify App Settings (`shopify.app.toml`):
+```toml
+client_id = "your_client_id"
+application_url = "https://your-app.vercel.app"
+scopes = "write_script_tags,read_script_tags"
+```
 
-Simply open [Lovable](https://lovable.dev/projects/d8af5483-1058-4427-b5d0-1d56bff6f45a) and click on Share -> Publish.
+### Environment Variables:
+```bash
+SHOPIFY_CLIENT_ID=your_client_id
+SHOPIFY_CLIENT_SECRET=your_client_secret
+SUPABASE_URL=https://project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-## Can I connect a custom domain to my Lovable project?
+## Security
 
-Yes, you can!
+### Admin Detection:
+- Primary: `hostname === 'admin.shopify.com'`
+- Secondary: Path checking (`/admin`, `/apps`)
+- Tertiary: DOM and iframe detection
+- Fail-safe: Block if uncertain
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Data Protection:
+- Encrypted database storage
+- Minimal PII collection
+- CORS properly configured
+- Rate limiting enabled
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Troubleshooting
+
+### Popups not showing:
+1. Check script tag exists in Shopify admin
+2. Verify popup-embed-public endpoint is accessible
+3. Confirm active popups exist in database
+
+### Popups on admin pages:
+1. Check admin detection logic
+2. Verify script URL points to popup-embed-public
+3. Clear browser cache
+
+### Authentication issues:
+1. Verify Shopify OAuth configuration
+2. Check redirect URLs match
+3. Confirm app permissions
+
+## Support
+
+### Debug Tools:
+- Add `&debug=true` to popup-embed-public URL for console logs
+- Check Supabase function logs for errors
+- Use browser dev tools for client-side debugging
+
+### Common Commands:
+```bash
+# View function logs
+npx supabase functions logs popup-embed-public --project-ref PROJECT_ID
+
+# Check database
+npx supabase db diff --project-ref PROJECT_ID
+
+# Deploy specific function
+npx supabase functions deploy popup-config --project-ref PROJECT_ID
+```
+
+## License
+
+MIT License - see LICENSE file for details.

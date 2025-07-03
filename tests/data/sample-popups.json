@@ -1,0 +1,132 @@
+{
+  "test_popups": [
+    {
+      "title": "Welcome Popup",
+      "content": "Get 10% off your first order! Use code WELCOME10",
+      "trigger_type": "time_delay",
+      "trigger_value": "3000",
+      "position": "center",
+      "is_active": true,
+      "description": "Basic time-delayed popup for new visitors"
+    },
+    {
+      "title": "Exit Intent Offer",
+      "content": "Wait! Don't leave empty handed. Get 15% off with code SAVE15",
+      "trigger_type": "exit_intent",
+      "trigger_value": "",
+      "position": "center",
+      "is_active": true,
+      "description": "Exit intent popup to reduce bounce rate"
+    },
+    {
+      "title": "Scroll Engagement",
+      "content": "Enjoying our products? Get exclusive deals in your inbox!",
+      "trigger_type": "scroll_percentage",
+      "trigger_value": "50",
+      "position": "bottom",
+      "is_active": true,
+      "description": "Popup triggered at 50% scroll depth"
+    },
+    {
+      "title": "Newsletter Signup",
+      "content": "Join 10,000+ customers and get the latest deals delivered to your inbox.",
+      "trigger_type": "time_delay",
+      "trigger_value": "10000",
+      "position": "top-right",
+      "is_active": true,
+      "description": "Newsletter signup with delayed trigger"
+    },
+    {
+      "title": "Cart Abandonment",
+      "content": "Complete your purchase and get FREE shipping on orders over $50!",
+      "trigger_type": "exit_intent",
+      "trigger_value": "",
+      "position": "center",
+      "is_active": false,
+      "description": "Cart abandonment prevention popup (inactive)"
+    }
+  ],
+  "expected_responses": {
+    "create_success": {
+      "success": true,
+      "popup": {
+        "id": "string",
+        "title": "string",
+        "content": "string",
+        "shop_domain": "string",
+        "created_at": "string",
+        "is_active": true
+      }
+    },
+    "list_success": {
+      "success": true,
+      "popups": [
+        {
+          "id": "string",
+          "title": "string",
+          "content": "string",
+          "trigger_type": "string",
+          "is_active": "boolean"
+        }
+      ]
+    },
+    "delete_success": {
+      "success": true,
+      "message": "Popup deleted successfully"
+    },
+    "error_invalid_action": {
+      "success": false,
+      "error": "Invalid action"
+    },
+    "error_missing_shop": {
+      "success": false,
+      "error": "Shop domain is required"
+    }
+  },
+  "test_scenarios": {
+    "admin_urls": [
+      "https://admin.shopify.com/store/test/apps/smart-popup2",
+      "https://admin.shopify.com/store/test/settings",
+      "https://admin.shopify.com/store/test/themes",
+      "https://admin.shopify.com/store/test/products"
+    ],
+    "customer_urls": [
+      "https://testingstoresumeet.myshopify.com/",
+      "https://testingstoresumeet.myshopify.com/products/test-product",
+      "https://testingstoresumeet.myshopify.com/collections/all",
+      "https://testingstoresumeet.myshopify.com/pages/about"
+    ],
+    "edge_cases": [
+      "https://admin.testingstoresumeet.myshopify.com/",
+      "https://testingstoresumeet.myshopify.com/admin",
+      "https://testingstoresumeet.myshopify.com/apps",
+      "https://sub.testingstoresumeet.myshopify.com/"
+    ]
+  },
+  "performance_benchmarks": {
+    "api_response_time_ms": 2000,
+    "script_load_time_ms": 1000,
+    "popup_render_time_ms": 500,
+    "max_script_size_bytes": 100000
+  },
+  "mock_shopify_responses": {
+    "script_tag_create": {
+      "script_tag": {
+        "id": 123456789,
+        "src": "https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com",
+        "event": "onload",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    "script_tag_list": {
+      "script_tags": [
+        {
+          "id": 123456789,
+          "src": "https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com",
+          "event": "onload"
+        }
+      ]
+    }
+  }
+}

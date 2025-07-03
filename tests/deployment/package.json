@@ -1,0 +1,34 @@
+{
+  "name": "smartpop-deployment-tests",
+  "version": "1.0.0",
+  "description": "Deployment verification tests for SmartPop Revenue Engine",
+  "scripts": {
+    "test:deployment": "jest --testPathPattern=deployment",
+    "test:deployment:backend": "jest tests/deployment/backend",
+    "test:deployment:frontend": "jest tests/deployment/frontend", 
+    "test:deployment:health": "jest tests/deployment/health",
+    "test:deployment:smoke": "jest tests/deployment/smoke",
+    "health-check": "node -e \"require('./health/system-health.test.js')\"",
+    "smoke-test": "jest tests/deployment/smoke/critical-paths.test.js",
+    "deploy-check": "./scripts/deploy-check.sh",
+    "watch": "jest --testPathPattern=deployment --watch",
+    "coverage": "jest --testPathPattern=deployment --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^23.0.1",
+    "node-fetch": "^3.3.2"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testTimeout": 30000,
+    "testMatch": [
+      "<rootDir>/**/*.test.js"
+    ],
+    "verbose": true,
+    "collectCoverageFrom": [
+      "**/*.test.js"
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "smartpop-tests",
+  "version": "1.0.0",
+  "description": "Test suite for SmartPop Revenue Engine",
+  "scripts": {
+    "test": "jest",
+    "test:api": "jest tests/api",
+    "test:frontend": "jest tests/frontend",
+    "test:database": "jest tests/database", 
+    "test:integration": "jest tests/integration",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:manual": "echo 'Open tests/manual/test-pages/popup-test.html in browser'",
+    "test:curl": "./tests/manual/curl-scripts/test-api.sh",
+    "setup": "npm install && echo 'Copy .env.example to .env.test and update values'"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.5.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^23.0.1",
+    "node-fetch": "^3.3.2",
+    "@supabase/supabase-js": "^2.38.4"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "supabase/functions/**/*.{js,ts}",
+      "!src/index.js",
+      "!src/serviceWorker.js"
+    ],
+    "moduleNameMapping": {
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
+    }
+  }
+}
