@@ -71,3 +71,4 @@ WORKING_INSTALLATION.md
 
 # Shopify development files
 .shopify/
+.vercel

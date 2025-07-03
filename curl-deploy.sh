@@ -4,7 +4,7 @@
 # This script attempts deployment using curl commands
 
 PROJECT_ID="zsmoutzjhqjgjehaituw"
-FUNCTION_NAME="install-direct"
+FUNCTION_NAME="app-embed"
 PROJECT_DIR="$(pwd)"
 
 echo "🚀 CURL DEPLOYMENT SCRIPT"
