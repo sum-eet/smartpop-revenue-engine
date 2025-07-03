@@ -146,7 +146,7 @@
   // Load popup configurations
   async function loadPopupConfigs() {
     try {
-      const response = await fetch(`${API_BASE}/popup-config?shop=${encodeURIComponent(SHOP_DOMAIN)}`);
+      const response = await fetch(`${API_BASE}/popup-config?action=list&shop_domain=${encodeURIComponent(SHOP_DOMAIN)}`);
       const data = await response.json();
       
       popupConfigs = data.filter(popup => popup.is_active && !popup.is_deleted).map(popup => ({
