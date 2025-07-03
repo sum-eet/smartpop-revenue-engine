@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install SmartPop Script - IMMEDIATE FIX</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .urgent { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .success { background: #22c55e; color: white; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .warning { background: #f59e0b; color: white; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .code { background: #f1f5f9; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; margin: 10px 0; }
+        button { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 10px 0; }
+        button:hover { background: #2563eb; }
+        input { padding: 10px; border: 2px solid #ddd; border-radius: 6px; width: 100%; max-width: 400px; margin: 10px 0; }
+        .step { background: #f8fafc; padding: 15px; border-left: 4px solid #3b82f6; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚨 URGENT: Install SmartPop Script Tag</h1>
+    
+    <div class="urgent">
+        <strong>PROBLEM:</strong> No SmartPop script is installed on testingstoresumeet.myshopify.com<br>
+        <strong>SOLUTION:</strong> Install the script tag using the tool below
+    </div>
+
+    <div class="step">
+        <h3>Step 1: Get Shopify Access Token</h3>
+        <p>1. Go to your Shopify admin: <a href="https://admin.shopify.com/store/testingstoresumeet" target="_blank">https://admin.shopify.com/store/testingstoresumeet</a></p>
+        <p>2. Go to <strong>Apps → App and sales channel settings</strong></p>
+        <p>3. Click <strong>"Develop apps"</strong> → <strong>"Create an app"</strong></p>
+        <p>4. Name it "SmartPop Installer"</p>
+        <p>5. Click <strong>"Configure Admin API scopes"</strong></p>
+        <p>6. Find and check: <strong>write_script_tags</strong></p>
+        <p>7. Save, then click <strong>"Install app"</strong></p>
+        <p>8. Copy the <strong>Admin API access token</strong></p>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Install Script Tag</h3>
+        <input type="text" id="accessToken" placeholder="Paste your Shopify access token here">
+        <br>
+        <button onclick="installScript()">🚀 Install SmartPop Script Now</button>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="step">
+        <h3>Step 3: Test Popups</h3>
+        <p>After installation, visit: <a href="https://testingstoresumeet.myshopify.com/" target="_blank">https://testingstoresumeet.myshopify.com/</a></p>
+        <p>✅ Scroll down 50% to trigger scroll popup</p>
+        <p>✅ Wait 5 seconds for time-based popups</p>
+        <p>✅ Check browser console for SmartPop logs</p>
+    </div>
+
+    <div class="warning">
+        <h3>🔍 Current Popup Configurations (8 active)</h3>
+        <ul>
+            <li>Scroll 50% Popup: "Wait! Don't Leave Empty Handed!" (SCROLL15 - 15% off)</li>
+            <li>Multiple time-based test popups (5-second delays)</li>
+            <li>Various deployment test popups</li>
+        </ul>
+    </div>
+
+    <script>
+        async function installScript() {
+            const accessToken = document.getElementById('accessToken').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!accessToken) {
+                resultDiv.innerHTML = '<div class="urgent">❌ Please enter your Shopify access token first!</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="warning">🔄 Installing script tag...</div>';
+            
+            try {
+                const shopDomain = 'testingstoresumeet.myshopify.com';
+                const scriptUrl = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=${shopDomain}`;
+                
+                // List existing script tags
+                const listResponse = await fetch(`https://${shopDomain}/admin/api/2023-10/script_tags.json`, {
+                    headers: {
+                        'X-Shopify-Access-Token': accessToken,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                if (!listResponse.ok) {
+                    throw new Error(`Failed to access Shopify API: ${listResponse.status}. Check your access token and permissions.`);
+                }
+                
+                const existingScripts = await listResponse.json();
+                console.log('Existing scripts:', existingScripts);
+                
+                // Remove old SmartPop scripts
+                for (const script of existingScripts.script_tags) {
+                    if (script.src.includes('smartpop') || script.src.includes('popup')) {
+                        console.log('Removing old script:', script.src);
+                        await fetch(`https://${shopDomain}/admin/api/2023-10/script_tags/${script.id}.json`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-Shopify-Access-Token': accessToken,
+                            },
+                        });
+                    }
+                }
+                
+                // Install new script tag
+                const installResponse = await fetch(`https://${shopDomain}/admin/api/2023-10/script_tags.json`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Shopify-Access-Token': accessToken,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        script_tag: {
+                            event: 'onload',
+                            src: scriptUrl,
+                        },
+                    }),
+                });
+                
+                if (!installResponse.ok) {
+                    const error = await installResponse.text();
+                    throw new Error(`Failed to install script: ${installResponse.status} - ${error}`);
+                }
+                
+                const result = await installResponse.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Script Tag Installed Successfully!</h3>
+                        <p><strong>Script URL:</strong> ${result.script_tag.src}</p>
+                        <p><strong>Script ID:</strong> ${result.script_tag.id}</p>
+                        <p><strong>Event:</strong> ${result.script_tag.event}</p>
+                        
+                        <h4>🎯 Test Now:</h4>
+                        <p>1. Visit: <a href="https://testingstoresumeet.myshopify.com/" target="_blank">https://testingstoresumeet.myshopify.com/</a></p>
+                        <p>2. Open browser console (F12)</p>
+                        <p>3. Look for SmartPop logs</p>
+                        <p>4. Scroll down 50% or wait 5 seconds</p>
+                        <p>5. Popups should appear!</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="urgent">
+                        <h3>❌ Installation Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        
+                        <h4>💡 Troubleshooting:</h4>
+                        <ul>
+                            <li>Double-check your access token</li>
+                            <li>Ensure you have <strong>write_script_tags</strong> permission</li>
+                            <li>Try creating a new private app if issues persist</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+    </script>
+
+    <div class="step">
+        <h3>📋 Alternative: Console Installation</h3>
+        <p>If the above doesn't work, you can run this in your browser console on the Shopify admin page:</p>
+        <div class="code">
+fetch('/admin/api/2023-10/script_tags.json', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({
+        script_tag: {
+            event: 'onload',
+            src: 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com'
+        }
+    })
+}).then(r => r.json()).then(console.log);
+        </div>
+    </div>
+</body>
+</html>
