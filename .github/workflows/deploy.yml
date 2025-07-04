@@ -51,12 +51,12 @@ jobs:
           echo "⚠️ popup-config endpoint may need attention"
         fi
         
-        # Test popup-embed-public endpoint accessibility  
-        echo "Testing popup-embed-public endpoint..."
-        if curl -s --max-time 10 "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com" > /dev/null; then
-          echo "✅ popup-embed-public endpoint accessible"
+        # Test popup-script endpoint accessibility  
+        echo "Testing popup-script endpoint..."
+        if curl -s --max-time 10 "https://${{ env.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/popup-script?shop=testingstoresumeet.myshopify.com" > /dev/null; then
+          echo "✅ popup-script endpoint accessible"
         else
-          echo "⚠️ popup-embed-public endpoint may need attention"
+          echo "⚠️ popup-script endpoint may need attention"
         fi
         
         echo "✅ Endpoint verification completed"
