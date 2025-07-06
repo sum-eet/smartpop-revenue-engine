@@ -198,24 +198,88 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
         break;
         
       case 'scroll_depth':
-        const scrollPercent = parseInt(triggerValue || '50');
+        // 🔧 FIXED: Input validation and edge case handling
+        let targetScrollPercent = parseInt(triggerValue || '50');
+        
+        // Validate and sanitize trigger value
+        if (isNaN(targetScrollPercent) || targetScrollPercent < 0) {
+          console.warn('🚨 Invalid scroll trigger value:', triggerValue, '- using default 50%');
+          targetScrollPercent = 50;
+        }
+        if (targetScrollPercent > 100) {
+          console.warn('🚨 Scroll trigger > 100%:', targetScrollPercent, '- clamping to 100%');
+          targetScrollPercent = 100;
+        }
+        
         let scrollTriggered = false;
+        console.log('🎯 Setting up scroll trigger at', targetScrollPercent + '%');
         
         function checkScroll() {
           if (scrollTriggered) return;
           
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          // 🌐 FIXED: Cross-browser scroll position detection
+          const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
           const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-          const scrollPercent = Math.round((scrollTop / docHeight) * 100);
           
-          if (scrollPercent >= parseInt(triggerValue || '50')) {
+          // 🔧 FIXED: Handle single-screen pages (docHeight = 0)
+          if (docHeight <= 0) {
+            console.log('📄 Single-screen page detected - triggering immediately for scroll 0%');
+            if (targetScrollPercent === 0) {
+              scrollTriggered = true;
+              showPopup(popup);
+              window.removeEventListener('scroll', checkScroll);
+            }
+            return;
+          }
+          
+          // 🎯 FIXED: Precise calculation with Math.floor for exact trigger point
+          const currentScrollPercent = Math.floor((scrollTop / docHeight) * 100);
+          
+          ${debug ? `console.log('📊 Scroll:', currentScrollPercent + '% / target:', targetScrollPercent + '%');` : ''}
+          
+          // 🏎️ FIXED: Fast scroll protection - use >= to catch users who scroll past
+          if (currentScrollPercent >= targetScrollPercent) {
             scrollTriggered = true;
+            console.log('✅ Scroll trigger fired at', currentScrollPercent + '%');
             showPopup(popup);
             window.removeEventListener('scroll', checkScroll);
           }
         }
         
-        window.addEventListener('scroll', checkScroll);
+        // ⏰ FIXED: Wait for full page load to get accurate docHeight
+        function setupScrollTrigger() {
+          const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+          
+          // Check if already at target on page load
+          if (docHeight <= 0 && targetScrollPercent === 0) {
+            console.log('📄 Page load: Single-screen + 0% trigger = immediate popup');
+            showPopup(popup);
+            return;
+          }
+          
+          const currentScrollPercent = Math.floor(((window.scrollY || window.pageYOffset || 0) / Math.max(docHeight, 1)) * 100);
+          if (currentScrollPercent >= targetScrollPercent) {
+            console.log('📄 Page load: Already past trigger point - showing popup');
+            showPopup(popup);
+            return;
+          }
+          
+          window.addEventListener('scroll', checkScroll, { passive: true });
+          
+          // 🧠 FIXED: Memory leak protection - cleanup on page unload
+          window.addEventListener('beforeunload', function cleanup() {
+            window.removeEventListener('scroll', checkScroll);
+            window.removeEventListener('beforeunload', cleanup);
+          });
+        }
+        
+        // Setup after DOM and images load for accurate height
+        if (document.readyState === 'complete') {
+          setupScrollTrigger();
+        } else {
+          window.addEventListener('load', setupScrollTrigger);
+        }
+        
         break;
         
       case 'exit_intent':
