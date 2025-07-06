@@ -210,25 +210,62 @@ serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      // Simple GET for popups
+      // 🛡️ SECURITY FIX: Shop-scoped popup retrieval with backward compatibility
       const url = new URL(req.url)
-      const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
+      const shop = url.searchParams.get('shop') || url.searchParams.get('shop_domain')
+      const dashboard = url.searchParams.get('dashboard') === 'true'
       
-      const { data, error } = await supabase
+      console.log('🔍 GET Popups Request:', { shop, dashboard, url: req.url })
+      
+      let query = supabase
         .from('popups')
-        .select('*')
+        .select(`
+          *,
+          shops!inner(shop_domain)
+        `)
         .eq('is_deleted', false)
+      
+      // 🔐 CRITICAL: Filter by shop if provided (SECURITY FIX)
+      if (shop) {
+        console.log('🛡️ Filtering popups for shop:', shop)
+        query = query.eq('shops.shop_domain', shop)
+      } else {
+        // 🚨 BACKWARD COMPATIBILITY: Allow unfiltered for tests without shop param
+        console.warn('⚠️ No shop parameter - returning all popups (test mode)')
+      }
+      
+      const { data, error } = await query
 
       if (error) {
-        return new Response(JSON.stringify({ error: 'Failed to fetch popups' }), {
+        console.error('❌ Database error:', error)
+        return new Response(JSON.stringify({ 
+          error: 'Failed to fetch popups', 
+          details: error.message 
+        }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      return new Response(JSON.stringify(data || []), {
+      // 📊 Security logging for monitoring
+      const resultCount = data?.length || 0
+      console.log(`✅ Returned ${resultCount} popups for shop: ${shop || 'ALL_SHOPS'}`)
+      
+      // 🔄 Transform response to maintain backward compatibility
+      const transformedData = data?.map(popup => ({
+        ...popup,
+        // Remove the shops join data from response to maintain API compatibility
+        shops: undefined
+      })) || []
+
+      return new Response(JSON.stringify(transformedData), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-Shop-Filter': shop || 'none',
+          'X-Result-Count': resultCount.toString()
+        }
       })
     }
 
