@@ -1,0 +1,10 @@
+{
+  "action": "save",
+  "name": "Test Popup",
+  "title": "Get 20% Off!",
+  "description": "Subscribe to our newsletter",
+  "button_text": "Get Discount",
+  "trigger_type": "time_delay",
+  "trigger_value": "3",
+  "shop_domain": "testingstoresumeet.myshopify.com"
+}

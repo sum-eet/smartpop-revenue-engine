@@ -154,7 +154,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
 
   console.log('🚀 SmartPop: Initializing on customer store');
 
-  // Load popups and show them (simplified version)
+  // Load popups and show them with proper triggers
   async function loadAndShowPopups() {
     try {
       console.log('📥 Loading popup configs...');
@@ -173,18 +173,72 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
       const activePopup = popups.find(p => p.is_active && !p.is_deleted);
       
       if (activePopup) {
-        console.log('🎯 Showing popup:', activePopup.name);
-        
-        // Show popup after short delay
-        setTimeout(() => {
-          showPopup(activePopup);
-        }, 2000);
+        console.log('🎯 Setting up popup:', activePopup.name, 'with trigger:', activePopup.trigger_type);
+        setupPopupTrigger(activePopup);
       } else {
         console.log('ℹ️ No active popups to show');
       }
       
     } catch (error) {
       console.error('❌ Error loading popups:', error);
+    }
+  }
+  
+  // Setup popup trigger based on type
+  function setupPopupTrigger(popup) {
+    const triggerType = popup.trigger_type;
+    const triggerValue = popup.trigger_value;
+    
+    console.log('🎯 Setting up trigger:', triggerType, 'with value:', triggerValue);
+    
+    switch (triggerType) {
+      case 'time_delay':
+        const delay = parseInt(triggerValue || '5') * 1000;
+        setTimeout(() => showPopup(popup), delay);
+        break;
+        
+      case 'scroll_depth':
+        const scrollPercent = parseInt(triggerValue || '50');
+        let scrollTriggered = false;
+        
+        function checkScroll() {
+          if (scrollTriggered) return;
+          
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+          const scrollPercent = Math.round((scrollTop / docHeight) * 100);
+          
+          if (scrollPercent >= parseInt(triggerValue || '50')) {
+            scrollTriggered = true;
+            showPopup(popup);
+            window.removeEventListener('scroll', checkScroll);
+          }
+        }
+        
+        window.addEventListener('scroll', checkScroll);
+        break;
+        
+      case 'exit_intent':
+        let exitTriggered = false;
+        
+        function handleMouseMove(e) {
+          if (exitTriggered) return;
+          
+          // Detect mouse moving toward top of screen
+          if (e.clientY <= 5 && e.movementY < 0) {
+            exitTriggered = true;
+            showPopup(popup);
+            document.removeEventListener('mousemove', handleMouseMove);
+          }
+        }
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        break;
+        
+      default:
+        // Default to time delay
+        setTimeout(() => showPopup(popup), 5000);
+        break;
     }
   }
   
@@ -232,7 +286,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
             \${popup.description || 'Get a special discount!'}
           </p>
           
-          <input type="email" placeholder="\${popup.email_placeholder || 'Enter your email'}" 
+          <input type="email" id="email-\${popup.id}" placeholder="\${popup.email_placeholder || 'Enter your email'}" 
                  style="
                    width: 100%;
                    padding: 12px;
@@ -243,7 +297,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
                    box-sizing: border-box;
                  ">
           
-          <button onclick="alert('Thank you!'); document.getElementById('smartpop-\${popup.id}').remove();" 
+          <button onclick="submitEmail('\${popup.id}', '\${popup.discount_code || ''}');" 
                   style="
                     background: #007cba;
                     color: white;
@@ -274,6 +328,87 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
       })
     }).catch(e => console.log('Track failed:', e));
   }
+  
+  // Email submission function
+  window.submitEmail = function(popupId, discountCode) {
+    const email = document.getElementById('email-' + popupId).value;
+    
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    console.log('📧 Submitting email:', email, 'for popup:', popupId);
+    
+    // Track email capture
+    fetch('${apiBaseUrl}/popup-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        popupId: popupId,
+        eventType: 'email_capture',
+        email: email,
+        shop: '${shop}',
+        pageUrl: window.location.href
+      })
+    }).catch(e => console.log('Track failed:', e));
+    
+    // Show success message
+    const popup = document.getElementById('smartpop-' + popupId);
+    popup.innerHTML = \`
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      ">
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 32px;
+          max-width: 450px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+          position: relative;
+        ">
+          <div style="color: #28a745; font-size: 48px; margin-bottom: 16px;">✓</div>
+          <h2 style="margin: 0 0 16px 0; color: #333; font-size: 24px;">Thank You!</h2>
+          <p style="margin: 0 0 24px 0; color: #666; font-size: 16px;">
+            Your email has been saved. \${discountCode ? 'Your discount code is: <strong>' + discountCode + '</strong>' : 'Check your email for special offers!'}
+          </p>
+          <button onclick="document.getElementById('smartpop-' + popupId).remove();" 
+                  style="
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    padding: 14px 28px;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    width: 100%;
+                  ">
+            Close
+          </button>
+        </div>
+      </div>
+    \`;
+    
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+      const popupElement = document.getElementById('smartpop-' + popupId);
+      if (popupElement) {
+        popupElement.remove();
+      }
+    }, 5000);
+  };
 
   // Initialize after DOM ready
   if (document.readyState === 'loading') {

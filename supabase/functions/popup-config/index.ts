@@ -150,6 +150,12 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         }
         
+        // Store popup_style in description field temporarily until column is added
+        if (body.popup_style || body.popupStyle) {
+          const style = body.popup_style || body.popupStyle || 'native';
+          popupData.description = popupData.description + ` [STYLE:${style}]`;
+        }
+        
         let result
         if (body.id) {
           // Update existing popup
