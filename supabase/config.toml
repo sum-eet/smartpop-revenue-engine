@@ -48,3 +48,18 @@ verify_jwt = false
 
 [functions.install-script-public]
 verify_jwt = false
+
+[functions.auto-install]
+verify_jwt = false
+
+[functions.check-scripts]
+verify_jwt = false
+
+[functions.fix-popup-trigger]
+verify_jwt = false
+
+[functions.analyze-popup-types]
+verify_jwt = false
+
+[functions.create-exit-intent-popup]
+verify_jwt = false

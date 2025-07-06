@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS/macOS Notification Preview</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .preview-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+        }
+
+        .preview-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .demo-container {
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px auto;
+        }
+
+        .iphone-demo {
+            width: 375px;
+            height: 600px;
+            background: url('ios.jpeg') center/cover;
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .macos-demo {
+            width: 800px;
+            height: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* iOS Notification - Using Gemini's better approach */
+        .ios-notification {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            padding-top: 44px; /* Status bar height */
+            background: transparent;
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease-out;
+            pointer-events: none;
+        }
+
+        .ios-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ios-notification-content {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 18px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.08);
+            width: 90%;
+            max-width: 360px;
+            margin: 0 8px;
+        }
+
+        .ios-notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .ios-notification-app-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            margin-right: 8px;
+            background-color: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ios-notification-app-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-right: auto;
+        }
+
+        .ios-notification-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .ios-notification-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .ios-notification-message {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .ios-email-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 8px;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.8);
+            font-family: inherit;
+        }
+
+        .ios-button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .ios-button:hover {
+            background: #0056d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+        }
+
+        /* macOS Notification - Keep original clean approach */
+        .macos-notification {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 360px;
+            transform: translateX(380px);
+            
+            background: rgba(235, 235, 235, 0.8);
+            backdrop-filter: blur(50px) saturate(200%) brightness(1.05);
+            -webkit-backdrop-filter: blur(50px) saturate(200%) brightness(1.05);
+            border-radius: 11px;
+            box-shadow: 
+                0 0 0 0.5px rgba(255, 255, 255, 0.3),
+                0 0 0 1px rgba(0, 0, 0, 0.05),
+                0 3px 8px rgba(0, 0, 0, 0.12),
+                0 10px 35px rgba(0, 0, 0, 0.08),
+                0 1px 0 rgba(255, 255, 255, 0.4) inset;
+            padding: 12px;
+            border: 0.5px solid rgba(255, 255, 255, 0.3);
+            
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .macos-notification.show {
+            transform: translateX(0);
+        }
+
+        .macos-notification-content {
+            display: flex;
+            gap: 12px;
+        }
+
+        .macos-notification-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(45deg, #007AFF, #0051d5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .macos-notification-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .macos-notification-app-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.85);
+            margin-bottom: 2px;
+        }
+
+        .macos-notification-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 1px;
+            line-height: 17px;
+        }
+
+        .macos-notification-message {
+            font-size: 13px;
+            font-weight: 400;
+            color: rgba(0, 0, 0, 0.7);
+            line-height: 17px;
+            margin-bottom: 12px;
+        }
+
+        .macos-email-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.95);
+            font-family: inherit;
+        }
+
+        .macos-button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-family: inherit;
+            box-shadow: 0 1px 4px rgba(0, 122, 255, 0.25);
+            transition: all 0.15s ease;
+        }
+
+        .macos-button:hover {
+            background: #0056d3;
+            box-shadow: 0 2px 6px rgba(0, 122, 255, 0.35);
+        }
+
+        .macos-notification-close {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff5f57;
+            border: 0.5px solid rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+        }
+
+        .macos-notification:hover .macos-notification-close {
+            opacity: 1;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin: 0 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-section">
+        <h1 class="preview-title">🍎 iOS Notification Preview</h1>
+        <div class="demo-container">
+            <div class="iphone-demo">
+                <!-- iOS Notification with Gemini's better approach -->
+                <div class="ios-notification" id="ios-notif">
+                    <div class="ios-notification-content">
+                        <div class="ios-notification-header">
+                            <div class="ios-notification-app-icon">🛍️</div>
+                            <div class="ios-notification-app-name">YOUR STORE</div>
+                            <div class="ios-notification-time">now</div>
+                        </div>
+                        <div class="ios-notification-title">Hey, before you leave...</div>
+                        <div class="ios-notification-message">Get 15% off your first order. No commitment required!</div>
+                        
+                        <input type="email" class="ios-email-input" placeholder="Enter your email for the discount">
+                        <button class="ios-button">Show Me The Deal</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="showIOSNotification()">Show iOS Notification</button>
+            <button class="control-btn" onclick="hideIOSNotification()">Hide iOS Notification</button>
+        </div>
+    </div>
+
+    <div class="preview-section">
+        <h1 class="preview-title">🖥️ macOS Notification Preview</h1>
+        <div class="demo-container">
+            <div class="macos-demo">
+                <!-- macOS Notification -->
+                <div class="macos-notification" id="macos-notif">
+                    <div class="macos-notification-close"></div>
+                    <div class="macos-notification-content">
+                        <div class="macos-notification-icon">🛍️</div>
+                        <div class="macos-notification-text">
+                            <div class="macos-notification-app-name">Your Store</div>
+                            <div class="macos-notification-title">Hey, before you leave...</div>
+                            <div class="macos-notification-message">Get 15% off your first order. No commitment required!</div>
+                            
+                            <input type="email" class="macos-email-input" placeholder="Enter your email for the discount">
+                            <button class="macos-button">Show Me The Deal</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="showMacOSNotification()">Show macOS Notification</button>
+            <button class="control-btn" onclick="hideMacOSNotification()">Hide macOS Notification</button>
+        </div>
+    </div>
+
+    <script>
+        function showIOSNotification() {
+            const notif = document.getElementById('ios-notif');
+            notif.classList.add('show');
+        }
+
+        function hideIOSNotification() {
+            const notif = document.getElementById('ios-notif');
+            notif.classList.remove('show');
+        }
+
+        function showMacOSNotification() {
+            const notif = document.getElementById('macos-notif');
+            notif.classList.add('show');
+        }
+
+        function hideMacOSNotification() {
+            const notif = document.getElementById('macos-notif');
+            notif.classList.remove('show');
+        }
+
+        // Auto-trigger notifications on load
+        setTimeout(() => {
+            showIOSNotification();
+        }, 500);
+
+        setTimeout(() => {
+            showMacOSNotification();
+        }, 1200);
+
+        // Close button for macOS
+        document.querySelector('.macos-notification-close').addEventListener('click', hideMacOSNotification);
+    </script>
+</body>
+</html>

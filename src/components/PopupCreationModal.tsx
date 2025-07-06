@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 type TriggerType = 'page_view' | 'time_delay' | 'scroll_depth' | 'exit_intent';
 type PageTarget = 'all_pages' | 'home_page' | 'product_pages' | 'cart_page' | 'checkout_page';
 type PopupType = 'email_capture' | 'discount_offer' | 'announcement' | 'newsletter';
+type PopupStyle = 'native' | 'traditional' | 'minimal' | 'corner';
 
 interface PopupFormData {
   name: string;
@@ -18,6 +19,7 @@ interface PopupFormData {
   triggerValue: string;
   pageTarget: PageTarget;
   popupType: PopupType;
+  popupStyle: PopupStyle;
   title: string;
   description: string;
   buttonText: string;
@@ -46,6 +48,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
     triggerValue: '',
     pageTarget: 'all_pages',
     popupType: 'email_capture',
+    popupStyle: 'native',
     title: '',
     description: '',
     buttonText: 'Get Started',
@@ -66,6 +69,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
         triggerValue: editingPopup.trigger_value || '',
         pageTarget: editingPopup.page_target || 'all_pages',
         popupType: editingPopup.popup_type || 'email_capture',
+        popupStyle: editingPopup.popup_style || 'native',
         title: editingPopup.title || '',
         description: editingPopup.description || '',
         buttonText: editingPopup.button_text || 'Get Started',
@@ -82,6 +86,7 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
         triggerValue: '',
         pageTarget: 'all_pages',
         popupType: 'email_capture',
+        popupStyle: 'native',
         title: '',
         description: '',
         buttonText: 'Get Started',
@@ -238,6 +243,50 @@ export const PopupCreationModal: React.FC<PopupCreationModalProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="popupStyle" className="text-sm font-medium">Popup Style</Label>
+            <Select 
+              value={formData.popupStyle} 
+              onValueChange={(value: PopupStyle) => setFormData(prev => ({ ...prev, popupStyle: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="native">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Native Notifications</span>
+                    <span className="text-xs text-muted-foreground">Platform-specific style (iOS, Android, macOS)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="traditional">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Traditional Modal</span>
+                    <span className="text-xs text-muted-foreground">Centered overlay popup</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="minimal">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Minimal Banner</span>
+                    <span className="text-xs text-muted-foreground">Subtle top or bottom bar</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="corner">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Corner Toast</span>
+                    <span className="text-xs text-muted-foreground">Bottom-right notification</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formData.popupStyle === 'native' && '✨ Automatically matches user\'s device style (iOS, Android, macOS, Windows)'}
+              {formData.popupStyle === 'traditional' && '📱 Classic centered popup with overlay backdrop'}
+              {formData.popupStyle === 'minimal' && '🎯 Non-intrusive bar that keeps page interactive'}
+              {formData.popupStyle === 'corner' && '🔔 Small notification in bottom-right corner'}
+            </p>
           </div>
 
           <div>

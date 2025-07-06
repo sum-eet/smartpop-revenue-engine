@@ -1,17 +1,75 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Rate limiting store
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key, x-shop-domain, x-shopify-session',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+}
+
+// Phase 4: Advanced Rate Limiting Store
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
-// Enhanced auth middleware with secure API key validation
-export async function validateAuth(req: Request): Promise<{
-  success: boolean;
+interface AuthResult {
+  authenticated: boolean;
+  shop?: string;
+  userId?: string;
+  shopId?: string;
+  authMethod?: string;
   error?: string;
-  details?: string;
-  shopDomain?: string;
-  apiKey?: string;
+  status?: number;
+  tokenData?: any;
   rateLimit?: { remaining: number; resetTime: number };
-}> {
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabase = createClient(supabaseUrl!, supabaseKey!)
+
+    if (req.method === 'POST') {
+      const { headers, required = false } = await req.json()
+      
+      console.log('🔐 Auth Check Request:', { 
+        hasAuth: !!headers.authorization,
+        hasApiKey: !!headers['x-api-key'],
+        hasShopifySession: !!headers['x-shopify-session'],
+        required 
+      })
+
+      const authResult = await validateAuth(supabase, req, headers, required)
+      
+      return new Response(JSON.stringify(authResult), {
+        status: authResult.status || (authResult.authenticated ? 200 : 401),
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+
+  } catch (error) {
+    console.error('Auth middleware error:', error)
+    return new Response(JSON.stringify({ 
+      authenticated: false,
+      error: 'Authentication service error',
+      status: 500 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+})
+
+// Phase 3: Enhanced Authentication with Phase 4 Rate Limiting
+async function validateAuth(supabase: any, req: Request, headers: any, required: boolean): Promise<AuthResult> {
   const timestamp = new Date().toISOString()
   console.log(`[${timestamp}] === AUTH VALIDATION ===`)
   
@@ -26,160 +84,187 @@ export async function validateAuth(req: Request): Promise<{
   if (!rateLimit.allowed) {
     console.log(`[${timestamp}] Rate limit exceeded for IP: ${clientIP}`)
     return {
-      success: false,
+      authenticated: false,
       error: 'Rate limit exceeded',
-      details: `Too many requests. Try again in ${Math.ceil((rateLimit.resetTime - Date.now()) / 1000)} seconds`,
+      status: 429,
       rateLimit: { remaining: 0, resetTime: rateLimit.resetTime }
     }
   }
 
   // Get auth headers
-  const apiKey = req.headers.get('x-api-key')
-  const shopDomain = req.headers.get('x-shop-domain')
+  const apiKey = headers['x-api-key'] || req.headers.get('x-api-key')
+  const shopDomain = headers['x-shop-domain'] || req.headers.get('x-shop-domain')
+  const authHeader = headers.authorization || req.headers.get('authorization')
   
   console.log(`[${timestamp}] API Key provided:`, !!apiKey)
   console.log(`[${timestamp}] Shop Domain:`, shopDomain)
+  console.log(`[${timestamp}] Auth Header provided:`, !!authHeader)
   
   // DEVELOPMENT BYPASS: Allow test-key for development
   if (apiKey === 'test-key' && shopDomain === 'testingstoresumeet.myshopify.com') {
     console.log(`[${timestamp}] AUTH SUCCESS: Development bypass`)
     return {
-      success: true,
-      shopDomain: shopDomain,
-      apiKey: apiKey,
+      authenticated: true,
+      shop: shopDomain,
+      authMethod: 'dev-bypass',
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
   }
   
-  if (!apiKey || !shopDomain) {
-    console.log(`[${timestamp}] AUTH FAILED: Missing headers`)
+  // If no authentication provided and not required, return unauthenticated
+  if (!apiKey && !authHeader && !required) {
+    console.log(`[${timestamp}] No auth provided, not required - allowing`)
     return {
-      success: false,
+      authenticated: false,
+      rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+    }
+  }
+  
+  // If authentication required but missing
+  if (required && (!apiKey || !shopDomain) && !authHeader) {
+    console.log(`[${timestamp}] AUTH FAILED: Missing required headers`)
+    return {
+      authenticated: false,
       error: 'Authentication required',
-      details: 'Missing required authentication headers: x-api-key, x-shop-domain',
+      status: 401,
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
   }
 
-  // Validate API key format
-  if (!isValidApiKeyFormat(apiKey)) {
+  // Validate API key format if provided
+  if (apiKey && !isValidApiKeyFormat(apiKey)) {
     console.log(`[${timestamp}] AUTH FAILED: Invalid API key format`)
     return {
-      success: false,
+      authenticated: false,
       error: 'Invalid API key format',
+      status: 400,
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
   }
 
-  // Validate shop domain format
-  if (!isValidShopDomain(shopDomain)) {
+  // Validate shop domain format if provided
+  if (shopDomain && !isValidShopDomain(shopDomain)) {
     console.log(`[${timestamp}] AUTH FAILED: Invalid shop domain format`)
     return {
-      success: false,
+      authenticated: false,
       error: 'Invalid shop domain format',
+      status: 400,
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
   }
 
   try {
-    // Validate API key against database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const supabase = createClient(supabaseUrl!, supabaseKey!)
+    // Try API key authentication first
+    if (apiKey && shopDomain) {
+      const { data: apiKeyRecord, error } = await supabase
+        .from('auth_tokens')
+        .select('*, shops!inner(shop_domain, is_active, subscription_status)')
+        .eq('token_hash', await hashApiKey(apiKey))
+        .eq('token_type', 'api_key')
+        .eq('is_active', true)
+        .eq('shops.shop_domain', shopDomain)
+        .single()
 
-    const { data: apiKeyRecord, error } = await supabase
-      .from('api_keys')
-      .select('*')
-      .eq('key_hash', await hashApiKey(apiKey))
-      .eq('is_active', true)
-      .single()
+      if (error || !apiKeyRecord) {
+        console.log(`[${timestamp}] AUTH FAILED: Invalid API key`)
+        return {
+          authenticated: false,
+          error: 'Invalid API key',
+          status: 401,
+          rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+        }
+      }
 
-    if (error || !apiKeyRecord) {
-      console.log(`[${timestamp}] AUTH FAILED: Invalid API key`)
+      // Check if API key is expired
+      if (apiKeyRecord.expires_at && new Date(apiKeyRecord.expires_at) < new Date()) {
+        console.log(`[${timestamp}] AUTH FAILED: API key expired`)
+        return {
+          authenticated: false,
+          error: 'API key expired',
+          status: 401,
+          rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+        }
+      }
+
+      // Check shop is active
+      const shop = apiKeyRecord.shops
+      if (!shop.is_active) {
+        console.log(`[${timestamp}] AUTH FAILED: Shop inactive`)
+        return {
+          authenticated: false,
+          error: 'Shop account inactive',
+          status: 403,
+          rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+        }
+      }
+
+      if (shop.subscription_status !== 'active') {
+        console.log(`[${timestamp}] AUTH FAILED: Invalid subscription`)
+        return {
+          authenticated: false,
+          error: 'Invalid subscription status',
+          status: 403,
+          rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
+        }
+      }
+
+      // Update API key last used timestamp
+      await supabase
+        .from('auth_tokens')
+        .update({ 
+          last_used_at: timestamp,
+          usage_count: apiKeyRecord.usage_count + 1
+        })
+        .eq('id', apiKeyRecord.id)
+
+      console.log(`[${timestamp}] AUTH SUCCESS for shop:`, shopDomain)
       return {
-        success: false,
-        error: 'Invalid API key',
+        authenticated: true,
+        shop: shopDomain,
+        shopId: apiKeyRecord.shop_id,
+        userId: apiKeyRecord.created_by,
+        authMethod: 'api_key',
+        tokenData: apiKeyRecord,
         rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
       }
     }
-
-    // Check if API key is expired
-    if (apiKeyRecord.expires_at && new Date(apiKeyRecord.expires_at) < new Date()) {
-      console.log(`[${timestamp}] AUTH FAILED: API key expired`)
+    
+    // JWT Token validation
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '')
+      // TODO: Implement JWT validation
+      console.log(`[${timestamp}] JWT auth not yet implemented`)
       return {
-        success: false,
-        error: 'API key expired',
+        authenticated: false,
+        error: 'JWT authentication not implemented',
+        status: 501,
         rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
       }
     }
-
-    // Validate shop domain matches API key
-    if (apiKeyRecord.shop_domain !== shopDomain) {
-      console.log(`[${timestamp}] AUTH FAILED: Shop domain mismatch`)
+    
+    // If we get here, no valid auth was provided
+    if (required) {
+      console.log(`[${timestamp}] AUTH FAILED: No valid authentication provided`)
       return {
-        success: false,
-        error: 'Shop domain does not match API key',
+        authenticated: false,
+        error: 'Authentication required',
+        status: 401,
         rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
       }
     }
-
-    // Check shop is active
-    const { data: shop, error: shopError } = await supabase
-      .from('shops')
-      .select('is_active, subscription_status')
-      .eq('shop_domain', shopDomain)
-      .single()
-
-    if (shopError || !shop) {
-      console.log(`[${timestamp}] AUTH FAILED: Shop not found`)
-      return {
-        success: false,
-        error: 'Shop not found',
-        rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
-      }
-    }
-
-    if (!shop.is_active) {
-      console.log(`[${timestamp}] AUTH FAILED: Shop inactive`)
-      return {
-        success: false,
-        error: 'Shop account inactive',
-        rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
-      }
-    }
-
-    if (shop.subscription_status !== 'active') {
-      console.log(`[${timestamp}] AUTH FAILED: Invalid subscription`)
-      return {
-        success: false,
-        error: 'Invalid subscription status',
-        rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
-      }
-    }
-
-    // Update API key last used timestamp
-    await supabase
-      .from('api_keys')
-      .update({ 
-        last_used_at: timestamp,
-        usage_count: apiKeyRecord.usage_count + 1
-      })
-      .eq('id', apiKeyRecord.id)
-
-    console.log(`[${timestamp}] AUTH SUCCESS for shop:`, shopDomain)
+    
+    // Not required, allow through
     return {
-      success: true,
-      shopDomain,
-      apiKey,
+      authenticated: false,
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
 
   } catch (error) {
     console.error(`[${timestamp}] AUTH ERROR:`, error)
     return {
-      success: false,
+      authenticated: false,
       error: 'Authentication system error',
-      details: 'Please try again later',
+      status: 500,
       rateLimit: { remaining: rateLimit.remaining, resetTime: rateLimit.resetTime }
     }
   }
@@ -233,6 +318,8 @@ async function checkRateLimit(clientIP: string): Promise<{
 // Validate API key format
 function isValidApiKeyFormat(apiKey: string): boolean {
   // API keys should be in format: sk_(test|live)_[shop_identifier]_[32_char_hash]
+  // Allow test-key for development
+  if (apiKey === 'test-key') return true
   const pattern = /^sk_(test|live)_[a-zA-Z0-9_-]+_[a-zA-Z0-9]{32}$/
   return pattern.test(apiKey)
 }
