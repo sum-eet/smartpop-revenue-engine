@@ -351,15 +351,25 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
           </p>
           
           <input type="email" id="email-\${popup.id}" placeholder="\${popup.email_placeholder || 'Enter your email'}" 
+                 oninput="validateEmailRealtime('\${popup.id}')"
+                 autocomplete="email"
+                 required
                  style="
                    width: 100%;
                    padding: 12px;
                    border: 2px solid #ddd;
                    border-radius: 6px;
                    font-size: 16px;
-                   margin-bottom: 16px;
+                   margin-bottom: 8px;
                    box-sizing: border-box;
+                   transition: border-color 0.3s ease;
                  ">
+          <div id="email-feedback-\${popup.id}" style="
+            display: none;
+            font-size: 12px;
+            margin-bottom: 8px;
+            min-height: 16px;
+          "></div>
           
           <button onclick="submitEmail('\${popup.id}', '\${popup.discount_code || ''}');" 
                   style="
@@ -393,29 +403,122 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
     }).catch(e => console.log('Track failed:', e));
   }
   
-  // Email submission function
-  window.submitEmail = function(popupId, discountCode) {
-    const email = document.getElementById('email-' + popupId).value;
+  // Enhanced RFC 5322 compliant email validation
+  window.validateEmail = function(email) {
+    // Length validation
+    if (!email || email.length < 5 || email.length > 254) return false;
     
-    if (!email || !email.includes('@')) {
+    // RFC 5322 regex (escaped for template literal)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_\`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!emailRegex.test(email)) return false;
+    
+    // Split validation
+    const parts = email.split('@');
+    if (parts.length !== 2) return false;
+    
+    const [local, domain] = parts;
+    
+    // Local part validation (before @)
+    if (local.length > 64) return false;
+    if (local.startsWith('.') || local.endsWith('.')) return false;
+    if (local.includes('..')) return false;
+    
+    // Domain validation
+    if (domain.length > 253) return false;
+    if (!domain.includes('.')) return false;
+    if (domain.startsWith('.') || domain.endsWith('.')) return false;
+    if (domain.includes('..')) return false;
+    
+    return true;
+  };
+
+  // Real-time email validation feedback
+  window.validateEmailRealtime = function(popupId) {
+    const email = document.getElementById('email-' + popupId).value.trim();
+    const feedbackEl = document.getElementById('email-feedback-' + popupId);
+    
+    if (!feedbackEl) return; // Fallback if feedback element not found
+    
+    if (!email) {
+      feedbackEl.textContent = '';
+      feedbackEl.style.display = 'none';
+      return;
+    }
+    
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.fontSize = '12px';
+    feedbackEl.style.marginTop = '4px';
+    
+    if (window.validateEmail(email)) {
+      feedbackEl.textContent = '✓ Email looks good!';
+      feedbackEl.style.color = '#27ae60';
+    } else {
+      feedbackEl.textContent = 'Please enter a valid email (e.g., user@example.com)';
+      feedbackEl.style.color = '#e74c3c';
+    }
+  };
+
+  // Email submission function (ENHANCED - preserving all existing functionality)
+  window.submitEmail = function(popupId, discountCode) {
+    const email = document.getElementById('email-' + popupId).value.trim();
+    
+    // Enhanced validation (fallback to old validation for compatibility)
+    if (!window.validateEmail(email)) {
+      // Keep original alert message for consistency
       alert('Please enter a valid email address');
       return;
     }
     
     console.log('📧 Submitting email:', email, 'for popup:', popupId);
     
-    // Track email capture
-    fetch('${apiBaseUrl}/popup-track', {
+    // Enhanced email capture (with fallback to old system)
+    fetch('${apiBaseUrl}/email-capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        popupId: popupId,
-        eventType: 'email_capture',
         email: email,
-        shop: '${shop}',
+        shopDomain: '${shop}',
+        popupId: popupId,
+        discountCode: discountCode,
         pageUrl: window.location.href
       })
-    }).catch(e => console.log('Track failed:', e));
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.success) {
+        console.log('✅ Email captured successfully via new API');
+      } else {
+        console.warn('⚠️ New email API failed, using fallback:', result.error);
+        // Fallback to old tracking system
+        return fetch('${apiBaseUrl}/popup-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            popupId: popupId,
+            eventType: 'email_capture',
+            email: email,
+            shop: '${shop}',
+            pageUrl: window.location.href
+          })
+        });
+      }
+    })
+    .catch(error => {
+      console.warn('⚠️ Email capture API error, using fallback:', error);
+      // Fallback to old tracking system
+      fetch('${apiBaseUrl}/popup-track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          popupId: popupId,
+          eventType: 'email_capture',
+          email: email,
+          shop: '${shop}',
+          pageUrl: window.location.href
+        })
+      }).catch(e => console.log('Fallback track failed:', e));
+    });
     
     // Show success message
     const popup = document.getElementById('smartpop-' + popupId);

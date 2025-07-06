@@ -214,8 +214,103 @@ serve(async (req) => {
       const url = new URL(req.url)
       const shop = url.searchParams.get('shop') || url.searchParams.get('shop_domain')
       const dashboard = url.searchParams.get('dashboard') === 'true'
+      const emails = url.searchParams.get('emails') === 'true'
       
-      console.log('🔍 GET Popups Request:', { shop, dashboard, url: req.url })
+      console.log('🔍 GET Request:', { shop, dashboard, emails, url: req.url })
+      
+      // 📧 EMAIL SUBSCRIBERS ENDPOINT
+      if (emails && shop) {
+        console.log('📧 Fetching email subscribers for shop:', shop)
+        
+        try {
+          // Try new email_subscribers table first
+          const { data: emailData, error: emailError } = await supabase
+            .from('email_subscribers')
+            .select(`
+              id,
+              email,
+              first_captured_at,
+              popup_id,
+              discount_code,
+              status,
+              page_url,
+              popups(name)
+            `)
+            .eq('shops.shop_domain', shop)
+            .eq('status', 'active')
+            .order('first_captured_at', { ascending: false })
+            .limit(1000)
+
+          if (!emailError && emailData) {
+            console.log(`📧 Found ${emailData.length} email subscribers`)
+            return new Response(JSON.stringify({
+              emails: emailData,
+              source: 'email_subscribers',
+              count: emailData.length
+            }), {
+              status: 200,
+              headers: { 
+                ...corsHeaders, 
+                'Content-Type': 'application/json',
+                'X-Email-Source': 'dedicated-table'
+              }
+            })
+          }
+          
+          // Fallback to popup_events table
+          console.log('📧 Falling back to popup_events table')
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('popup_events')
+            .select(`
+              id,
+              email,
+              timestamp,
+              popup_id,
+              discount_code_used,
+              page_url
+            `)
+            .eq('shop_domain', shop)
+            .eq('event_type', 'email_capture')
+            .not('email', 'is', null)
+            .order('timestamp', { ascending: false })
+            .limit(1000)
+
+          if (fallbackError) {
+            console.error('❌ Email retrieval error:', fallbackError)
+            return new Response(JSON.stringify({ 
+              error: 'Failed to fetch emails', 
+              details: fallbackError.message 
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+
+          console.log(`📧 Found ${fallbackData?.length || 0} emails in fallback table`)
+          return new Response(JSON.stringify({
+            emails: fallbackData || [],
+            source: 'popup_events',
+            count: fallbackData?.length || 0
+          }), {
+            status: 200,
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json',
+              'X-Email-Source': 'fallback-table'
+            }
+          })
+
+        } catch (error) {
+          console.error('❌ Email endpoint error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Email retrieval failed',
+            details: error.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
       
       let query = supabase
         .from('popups')
