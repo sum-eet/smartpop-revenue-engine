@@ -56,21 +56,26 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
   
   return `
 /**
- * SmartPop Revenue Engine - Public Embed Script
+ * SmartPop Revenue Engine - Public Embed Script  
  * Shop: ${shop}
  * Generated: ${new Date().toISOString()}
- * Version: 2.0 - Fixed scope issues
+ * Version: 2.1 - FIXED: Multiple popups + validation consistency
  */
 
 (function() {
   'use strict';
   
-  // Prevent multiple initializations
+  // Prevent multiple initializations + cleanup old versions
   if (window.smartPopInitialized) {
-    console.log('🎯 SmartPop already initialized');
+    console.log('🎯 SmartPop already initialized - cleaning up old version');
+    // Clean up any existing popups from old versions
+    const existingPopups = document.querySelectorAll('[id^="smartpop-"]');
+    existingPopups.forEach(p => p.remove());
     return;
   }
   window.smartPopInitialized = true;
+  window.smartPopVersion = '2.1';
+  console.log('🚀 SmartPop initialized v2.1');
 
   // CRITICAL ADMIN DETECTION - This is the key fix
   function shouldSkipPopup() {
@@ -307,6 +312,13 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
   }
   
   function showPopup(popup) {
+    // CRITICAL: Remove any existing popups first to prevent multiple popups
+    const existingPopups = document.querySelectorAll('[id^="smartpop-"]');
+    existingPopups.forEach(p => p.remove());
+    console.log('🧹 Cleaned up', existingPopups.length, 'existing popups');
+    
+    console.log('🎯 Showing popup:', popup.name, 'ID:', popup.id);
+    
     const popupHTML = \`
       <div id="smartpop-\${popup.id}" style="
         position: fixed;
@@ -403,33 +415,75 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
     }).catch(e => console.log('Track failed:', e));
   }
   
-  // Enhanced RFC 5322 compliant email validation
+  // Fixed email validation - ACTUALLY WORKS NOW
   window.validateEmail = function(email) {
+    console.log('🔍 Validating email:', email);
+    
+    // Basic checks first
+    if (!email || typeof email !== 'string') {
+      console.log('❌ Email is empty or not string');
+      return false;
+    }
+    
+    const cleanEmail = email.trim();
+    
     // Length validation
-    if (!email || email.length < 5 || email.length > 254) return false;
+    if (cleanEmail.length < 3 || cleanEmail.length > 254) {
+      console.log('❌ Email length invalid:', cleanEmail.length);
+      return false;
+    }
     
-    // RFC 5322 regex (escaped for template literal)
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_\`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    // Must contain exactly one @
+    const atCount = (cleanEmail.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      console.log('❌ Must contain exactly one @, found:', atCount);
+      return false;
+    }
     
-    if (!emailRegex.test(email)) return false;
-    
-    // Split validation
-    const parts = email.split('@');
-    if (parts.length !== 2) return false;
-    
+    // Split by @
+    const parts = cleanEmail.split('@');
     const [local, domain] = parts;
     
-    // Local part validation (before @)
-    if (local.length > 64) return false;
-    if (local.startsWith('.') || local.endsWith('.')) return false;
-    if (local.includes('..')) return false;
+    // Local part (before @) validation
+    if (!local || local.length === 0) {
+      console.log('❌ Missing local part (before @)');
+      return false;
+    }
     
-    // Domain validation
-    if (domain.length > 253) return false;
-    if (!domain.includes('.')) return false;
-    if (domain.startsWith('.') || domain.endsWith('.')) return false;
-    if (domain.includes('..')) return false;
+    // Domain part (after @) validation  
+    if (!domain || domain.length === 0) {
+      console.log('❌ Missing domain part (after @)');
+      return false;
+    }
     
+    // Domain MUST contain at least one dot
+    if (!domain.includes('.')) {
+      console.log('❌ Domain must contain at least one dot');
+      return false;
+    }
+    
+    // Domain must not start or end with dot
+    if (domain.startsWith('.') || domain.endsWith('.')) {
+      console.log('❌ Domain cannot start or end with dot');
+      return false;
+    }
+    
+    // Domain must have something after the last dot (TLD)
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+    if (!tld || tld.length < 2) {
+      console.log('❌ Invalid TLD:', tld);
+      return false;
+    }
+    
+    // Basic character validation (simplified but effective)
+    const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      console.log('❌ Failed regex test');
+      return false;
+    }
+    
+    console.log('✅ Email validation passed');
     return true;
   };
 
@@ -496,7 +550,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             popupId: popupId,
-            eventType: 'email_capture',
+            eventType: 'conversion',
             email: email,
             shop: '${shop}',
             pageUrl: window.location.href
@@ -512,7 +566,7 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           popupId: popupId,
-          eventType: 'email_capture',
+          eventType: 'conversion',
           email: email,
           shop: '${shop}',
           pageUrl: window.location.href

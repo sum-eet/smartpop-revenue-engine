@@ -270,7 +270,7 @@ serve(async (req) => {
               page_url
             `)
             .eq('shop_domain', shop)
-            .eq('event_type', 'email_capture')
+            .eq('event_type', 'conversion')
             .not('email', 'is', null)
             .order('timestamp', { ascending: false })
             .limit(1000)

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Popup Issues</title>
+</head>
+<body>
+    <h1>🔍 Debug Popup Issues</h1>
+    <p>Open browser console and check what's happening...</p>
+    
+    <button onclick="checkPopups()">Check Current Popups</button>
+    <button onclick="testValidation()">Test Validation</button>
+    <button onclick="clearAllPopups()">Clear All Popups</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Load the popup script to see what's happening
+        const script = document.createElement('script');
+        script.src = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com&t=' + Date.now();
+        document.head.appendChild(script);
+        
+        function checkPopups() {
+            const popups = document.querySelectorAll('[id^="smartpop-"]');
+            const results = document.getElementById('results');
+            
+            console.log('🔍 Found', popups.length, 'popups');
+            
+            let html = `<h3>Found ${popups.length} popups:</h3>`;
+            popups.forEach((popup, i) => {
+                html += `<div>Popup ${i+1}: ${popup.id}</div>`;
+                console.log('Popup', i+1, ':', popup.id, popup);
+            });
+            
+            // Check if validation function exists
+            html += `<h3>Validation Status:</h3>`;
+            html += `<div>validateEmail function exists: ${typeof window.validateEmail}</div>`;
+            html += `<div>SmartPop initialized: ${window.smartPopInitialized}</div>`;
+            html += `<div>SmartPop version: ${window.smartPopVersion}</div>`;
+            
+            results.innerHTML = html;
+        }
+        
+        function testValidation() {
+            if (typeof window.validateEmail === 'function') {
+                const testCases = ['a', 'eee@g', '@', 'user@example.com'];
+                
+                testCases.forEach(email => {
+                    const result = window.validateEmail(email);
+                    console.log(`Testing "${email}": ${result ? 'VALID' : 'INVALID'}`);
+                });
+            } else {
+                console.error('❌ validateEmail function not found!');
+            }
+        }
+        
+        function clearAllPopups() {
+            const popups = document.querySelectorAll('[id^="smartpop-"]');
+            popups.forEach(p => p.remove());
+            console.log('🧹 Cleared', popups.length, 'popups');
+            checkPopups();
+        }
+        
+        // Auto-check after script loads
+        setTimeout(checkPopups, 3000);
+    </script>
+</body>
+</html>
