@@ -1,6 +1,10 @@
 
 (function() {
   'use strict';
+  
+  console.log('🎯 SMARTPOP DEBUG: Script starting...');
+  console.log('🎯 SMARTPOP DEBUG: Current URL:', window.location.href);
+  console.log('🎯 SMARTPOP DEBUG: Timestamp:', new Date().toISOString());
 
   // COMPREHENSIVE ADMIN DETECTION
   function shouldSkipPopup() {
@@ -81,14 +85,22 @@
   }
 
   // PREVENT MULTIPLE POPUP INSTANCES
+  console.log('🎯 SMARTPOP DEBUG: Checking if already initialized...');
+  console.log('🎯 SMARTPOP DEBUG: window.smartPopInitialized =', window.smartPopInitialized);
+  
   if (window.smartPopInitialized) {
-    console.log('🔄 SmartPop already initialized - cleaning up');
+    console.log('🎯 SMARTPOP DEBUG: ALREADY INITIALIZED - This is the problem!');
     const existingPopups = document.querySelectorAll('[id^="smartpop-"], .smartpop-popup, [class*="smartpop"]');
-    existingPopups.forEach(p => p.remove());
+    console.log('🎯 SMARTPOP DEBUG: Found existing popups:', existingPopups.length);
+    existingPopups.forEach((p, i) => {
+      console.log(`🎯 SMARTPOP DEBUG: Removing popup ${i+1}:`, p.id, p.className);
+      p.remove();
+    });
+    console.log('🎯 SMARTPOP DEBUG: EXITING - should prevent duplicate');
     return;
   }
   window.smartPopInitialized = true;
-  console.log('🎯 SmartPop initialized - preventing duplicates');
+  console.log('🎯 SMARTPOP DEBUG: NOW INITIALIZED - first time running');
 
   // Configuration
   const API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
@@ -156,10 +168,26 @@
   // Load popup configurations
   async function loadPopupConfigs() {
     try {
+      console.log('🎯 SMARTPOP DEBUG: Loading popup configs for shop:', SHOP_DOMAIN);
       const response = await fetch(`${API_BASE}/popup-config?action=list&shop_domain=${encodeURIComponent(SHOP_DOMAIN)}`);
       const data = await response.json();
       
-      popupConfigs = data.filter(popup => popup.is_active && !popup.is_deleted).map(popup => ({
+      console.log('🎯 SMARTPOP DEBUG: Raw popup data from API:', data);
+      console.log('🎯 SMARTPOP DEBUG: Total popups received:', data.length);
+      
+      const activePopups = data.filter(popup => popup.is_active && !popup.is_deleted);
+      console.log('🎯 SMARTPOP DEBUG: Active popups after filter:', activePopups.length);
+      activePopups.forEach((popup, i) => {
+        console.log(`🎯 SMARTPOP DEBUG: Popup ${i+1}:`, {
+          id: popup.id,
+          name: popup.name,
+          trigger_type: popup.trigger_type,
+          trigger_value: popup.trigger_value,
+          is_active: popup.is_active
+        });
+      });
+      
+      popupConfigs = activePopups.map(popup => ({
         id: popup.id,
         type: popup.trigger_type,
         title: popup.title || 'Special Offer',
@@ -185,8 +213,22 @@
 
   // Check if any popup should be triggered
   function checkTriggers() {
-    if (activePopups.size > 0) return; // Don't show multiple popups
+    console.log('🎯 SMARTPOP DEBUG: checkTriggers() called');
+    console.log('🎯 SMARTPOP DEBUG: Current behavior:', {
+      scrollDepth: behavior.scrollDepth,
+      timeOnSite: behavior.timeOnSite,
+      hasExitIntent: behavior.hasExitIntent,
+      isFirstVisit: behavior.isFirstVisit
+    });
+    console.log('🎯 SMARTPOP DEBUG: Active popups count:', activePopups.size);
+    console.log('🎯 SMARTPOP DEBUG: Shown popups:', Array.from(shownPopups));
+    
+    if (activePopups.size > 0) {
+      console.log('🎯 SMARTPOP DEBUG: SKIPPING - already have active popup');
+      return;
+    }
 
+    console.log('🎯 SMARTPOP DEBUG: Checking eligibility for', popupConfigs.length, 'popups...');
     const eligiblePopup = popupConfigs.find(popup => {
       if (shownPopups.has(popup.id)) return false;
 
@@ -226,9 +268,19 @@
 
   // Show popup
   function showPopup(config) {
-    if (activePopups.has(config.id) || shownPopups.has(config.id)) return;
+    console.log('🎯 SMARTPOP DEBUG: showPopup() called for:', config.id);
+    console.log('🎯 SMARTPOP DEBUG: Popup config:', config);
+    
+    if (activePopups.has(config.id)) {
+      console.log('🎯 SMARTPOP DEBUG: SKIPPING - already active:', config.id);
+      return;
+    }
+    if (shownPopups.has(config.id)) {
+      console.log('🎯 SMARTPOP DEBUG: SKIPPING - already shown:', config.id);
+      return;
+    }
 
-    console.log('Showing popup:', config);
+    console.log('🎯 SMARTPOP DEBUG: ✅ SHOWING POPUP:', config.id, config.type);
     activePopups.add(config.id);
     shownPopups.add(config.id);
 
@@ -438,7 +490,9 @@
   // Real-time email validation with visual feedback
   window.validateEmailRealTime = function(input) {
     const email = input.value;
+    console.log('🎯 SMARTPOP DEBUG: Real-time validation for:', email);
     const isValid = window.validateEmail(email);
+    console.log('🎯 SMARTPOP DEBUG: Real-time result:', isValid ? 'VALID' : 'INVALID');
     
     // Update visual feedback
     if (email.length === 0) {
@@ -467,13 +521,20 @@
 
   // Handle form submission
   function handleSubmit(popupId, email) {
-    console.log('Email submitted:', email);
+    console.log('🎯 SMARTPOP DEBUG: Form submission attempted');
+    console.log('🎯 SMARTPOP DEBUG: Popup ID:', popupId);
+    console.log('🎯 SMARTPOP DEBUG: Email value:', email);
     
     // Validate email before submission
-    if (!window.validateEmail(email)) {
-      console.log('❌ Invalid email, not submitting:', email);
+    const isValidForSubmission = window.validateEmail(email);
+    console.log('🎯 SMARTPOP DEBUG: Final validation result:', isValidForSubmission ? 'VALID - PROCEEDING' : 'INVALID - BLOCKING');
+    
+    if (!isValidForSubmission) {
+      console.log('🎯 SMARTPOP DEBUG: ❌ SUBMISSION BLOCKED - Invalid email:', email);
       return;
     }
+    
+    console.log('🎯 SMARTPOP DEBUG: ✅ SUBMISSION ALLOWED - Valid email:', email);
     
     trackEvent(popupId, 'conversion', { email });
     

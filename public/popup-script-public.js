@@ -1,6 +1,10 @@
 
 (function() {
   'use strict';
+  
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: Script starting...');
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: Current URL:', window.location.href);
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: Timestamp:', new Date().toISOString());
 
   // COMPREHENSIVE ADMIN DETECTION
   function shouldSkipPopup() {
@@ -81,14 +85,22 @@
   }
 
   // PREVENT MULTIPLE POPUP INSTANCES
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: Checking if already initialized...');
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: window.smartPopInitialized =', window.smartPopInitialized);
+  
   if (window.smartPopInitialized) {
-    console.log('🔄 SmartPop already initialized - cleaning up');
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: ALREADY INITIALIZED - This explains multiple popups!');
     const existingPopups = document.querySelectorAll('[id^="smartpop-"], .smartpop-popup, [class*="smartpop"]');
-    existingPopups.forEach(p => p.remove());
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Found existing popups:', existingPopups.length);
+    existingPopups.forEach((p, i) => {
+      console.log(`🎯 SMARTPOP-PUBLIC DEBUG: Removing popup ${i+1}:`, p.id, p.className);
+      p.remove();
+    });
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: EXITING - should prevent duplicate');
     return;
   }
   window.smartPopInitialized = true;
-  console.log('🎯 SmartPop initialized - preventing duplicates');
+  console.log('🎯 SMARTPOP-PUBLIC DEBUG: NOW INITIALIZED - first time running');
 
   // Configuration
   const API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
@@ -438,7 +450,9 @@
   // Real-time email validation with visual feedback
   window.validateEmailRealTime = function(input) {
     const email = input.value;
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Real-time validation for:', email);
     const isValid = window.validateEmail(email);
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Real-time result:', isValid ? 'VALID' : 'INVALID');
     
     // Update visual feedback
     if (email.length === 0) {
@@ -467,13 +481,20 @@
 
   // Handle form submission
   function handleSubmit(popupId, email) {
-    console.log('Email submitted:', email);
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Form submission attempted');
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Popup ID:', popupId);
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Email value:', email);
     
     // Validate email before submission
-    if (!window.validateEmail(email)) {
-      console.log('❌ Invalid email, not submitting:', email);
+    const isValidForSubmission = window.validateEmail(email);
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: Final validation result:', isValidForSubmission ? 'VALID - PROCEEDING' : 'INVALID - BLOCKING');
+    
+    if (!isValidForSubmission) {
+      console.log('🎯 SMARTPOP-PUBLIC DEBUG: ❌ SUBMISSION BLOCKED - Invalid email:', email);
       return;
     }
+    
+    console.log('🎯 SMARTPOP-PUBLIC DEBUG: ✅ SUBMISSION ALLOWED - Valid email:', email);
     
     trackEvent(popupId, 'conversion', { email });
     
