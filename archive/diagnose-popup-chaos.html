@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔍 Diagnose Popup Chaos</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f0f0f0; }
+        .log { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; }
+        .success { background: #e8f5e9; }
+        .warning { background: #fff3e0; }
+        button { padding: 10px 20px; margin: 5px; font-size: 14px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnose Popup Chaos</h1>
+    <p>This will help us find why you're seeing multiple popups and broken validation.</p>
+    
+    <button onclick="loadPopupScript()">Load Popup Script</button>
+    <button onclick="checkCurrentState()">Check Current State</button>
+    <button onclick="testValidation()">Test Validation</button>
+    <button onclick="clearEverything()">Clear Everything</button>
+    
+    <div id="logs"></div>
+
+    <script>
+        let logContainer = document.getElementById('logs');
+        
+        function log(message, type = 'log') {
+            console.log(message);
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logContainer.insertBefore(div, logContainer.firstChild);
+        }
+        
+        function loadPopupScript() {
+            log('🚀 Loading popup script with cache buster...', 'success');
+            
+            // Add cache buster
+            const timestamp = Date.now();
+            const script = document.createElement('script');
+            script.src = \`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-embed-public?shop=testingstoresumeet.myshopify.com&t=\${timestamp}\`;
+            script.onload = () => log('✅ Popup script loaded successfully');
+            script.onerror = () => log('❌ Failed to load popup script', 'error');
+            document.head.appendChild(script);
+            
+            // Check what happens
+            setTimeout(checkCurrentState, 2000);
+        }
+        
+        function checkCurrentState() {
+            log('🔍 Checking current state...', 'warning');
+            
+            // Check popups
+            const popups = document.querySelectorAll('[id^="smartpop-"], .smartpop-popup, [class*="smartpop"]');
+            log(\`Found \${popups.length} popup elements:\`);
+            popups.forEach((popup, i) => {
+                log(\`  Popup \${i+1}: \${popup.id || popup.className} - \${popup.tagName}\`);
+            });
+            
+            // Check global variables
+            const globals = {
+                'smartPopInitialized': window.smartPopInitialized,
+                'smartPopVersion': window.smartPopVersion,
+                'validateEmail': typeof window.validateEmail,
+                'submitEmail': typeof window.submitEmail,
+                'submitSmartPopup': typeof window.submitSmartPopup
+            };
+            
+            log('Global variables:');
+            Object.entries(globals).forEach(([key, value]) => {
+                log(\`  \${key}: \${value}\`);
+            });
+            
+            // Check scripts
+            const scripts = document.querySelectorAll('script[src*="popup"]');
+            log(\`Found \${scripts.length} popup-related scripts:\`);
+            scripts.forEach((script, i) => {
+                log(\`  Script \${i+1}: \${script.src}\`);
+            });
+        }
+        
+        function testValidation() {
+            log('🧪 Testing email validation...', 'warning');
+            
+            if (typeof window.validateEmail === 'function') {
+                const testEmails = ['a', 'eee@g', '@', 'user@example.com'];
+                
+                testEmails.forEach(email => {
+                    const result = window.validateEmail(email);
+                    const status = result ? '✅ VALID' : '❌ INVALID';
+                    const className = result ? 'success' : 'error';
+                    log(\`Test "\${email}": \${status}\`, className);
+                });
+            } else {
+                log('❌ validateEmail function not found!', 'error');
+            }
+        }
+        
+        function clearEverything() {
+            log('🧹 Clearing everything...', 'warning');
+            
+            // Remove all popups
+            const popups = document.querySelectorAll('[id^="smartpop-"], .smartpop-popup, [class*="smartpop"]');
+            popups.forEach(p => p.remove());
+            log(\`Removed \${popups.length} popup elements\`);
+            
+            // Reset global state
+            window.smartPopInitialized = false;
+            delete window.smartPopVersion;
+            log('Reset global variables');
+            
+            checkCurrentState();
+        }
+        
+        // Auto-check initial state
+        log('🔄 Page loaded, checking initial state...');
+        setTimeout(checkCurrentState, 1000);
+    </script>
+</body>
+</html>
