@@ -80,6 +80,16 @@
     return;
   }
 
+  // PREVENT MULTIPLE POPUP INSTANCES
+  if (window.smartPopInitialized) {
+    console.log('🔄 SmartPop already initialized - cleaning up');
+    const existingPopups = document.querySelectorAll('[id^="smartpop-"], .smartpop-popup, [class*="smartpop"]');
+    existingPopups.forEach(p => p.remove());
+    return;
+  }
+  window.smartPopInitialized = true;
+  console.log('🎯 SmartPop initialized - preventing duplicates');
+
   // Configuration
   const API_BASE = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1';
   const SHOP_DOMAIN = window.Shopify ? window.Shopify.shop : window.location.hostname;
@@ -304,7 +314,8 @@
               margin-bottom: 16px;
               box-sizing: border-box;
               transition: border-color 0.2s;
-            " onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+            " onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" 
+            oninput="validateEmailRealTime(this)">
             
             <button type="submit" style="
               width: 100%;
@@ -377,9 +388,93 @@
     trackEvent(popupId, 'close');
   }
 
+  // EMAIL VALIDATION - RFC 5322 COMPLIANT
+  window.validateEmail = function(email) {
+    console.log('🔍 Validating email:', email);
+    if (!email || typeof email !== 'string') {
+      console.log('❌ Email is empty or not string');
+      return false;
+    }
+    
+    const cleanEmail = email.trim();
+    if (cleanEmail.length === 0) {
+      console.log('❌ Email is empty after trim');
+      return false;
+    }
+    
+    // Check for exactly one @
+    const atCount = (cleanEmail.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      console.log('❌ Must contain exactly one @, found:', atCount);
+      return false;
+    }
+    
+    const [localPart, domain] = cleanEmail.split('@');
+    
+    // Local part validation
+    if (!localPart || localPart.length === 0) {
+      console.log('❌ Local part is empty');
+      return false;
+    }
+    
+    // Domain validation
+    if (!domain || domain.length === 0) {
+      console.log('❌ Domain is empty');
+      return false;
+    }
+    
+    if (!domain.includes('.')) {
+      console.log('❌ Domain must contain at least one dot');
+      return false;
+    }
+    
+    // Basic format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(cleanEmail);
+    console.log(isValid ? '✅ Email is valid' : '❌ Email failed regex test');
+    return isValid;
+  };
+
+  // Real-time email validation with visual feedback
+  window.validateEmailRealTime = function(input) {
+    const email = input.value;
+    const isValid = window.validateEmail(email);
+    
+    // Update visual feedback
+    if (email.length === 0) {
+      input.style.borderColor = '#e5e7eb'; // Default
+    } else if (isValid) {
+      input.style.borderColor = '#10b981'; // Green for valid
+    } else {
+      input.style.borderColor = '#ef4444'; // Red for invalid
+    }
+    
+    // Update submit button state
+    const form = input.closest('form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      if (email.length === 0 || isValid) {
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.disabled = false;
+      } else {
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.disabled = true;
+      }
+    }
+  };
+
   // Handle form submission
   function handleSubmit(popupId, email) {
     console.log('Email submitted:', email);
+    
+    // Validate email before submission
+    if (!window.validateEmail(email)) {
+      console.log('❌ Invalid email, not submitting:', email);
+      return;
+    }
+    
     trackEvent(popupId, 'conversion', { email });
     
     // Show success message
