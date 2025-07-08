@@ -142,8 +142,17 @@ serve(async (req) => {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Initialize Smart Exit Intent System
-    initializeSmartExitIntent();
+    // Initialize Smart Exit Intent System ONLY if there are active exit intent popups
+    const hasExitIntentPopups = popups.some(popup => 
+      popup.is_active && !popup.is_deleted && popup.trigger_type === 'exit_intent'
+    );
+    
+    if (hasExitIntentPopups) {
+      console.log('🚪 Exit intent popups found - initializing Smart Exit Intent System');
+      initializeSmartExitIntent();
+    } else {
+      console.log('ℹ️ No active exit intent popups - skipping Smart Exit Intent System');
+    }
     
     // Initial check
     checkTriggers();
@@ -1452,6 +1461,31 @@ serve(async (req) => {
       return true;
     };
 
+    // Proper popup submit handler with validation
+    window.handlePopupSubmit = function(popupId) {
+      const emailInput = document.getElementById(\`email-input-\${popupId}\`);
+      if (!emailInput) {
+        console.error('❌ Email input not found for popup:', popupId);
+        return;
+      }
+      
+      const email = emailInput.value.trim();
+      console.log('🔍 Popup submit attempt:', { popupId, email });
+      
+      if (window.validateEmail(email)) {
+        console.log('✅ Email validation passed - submitting');
+        alert('Thank you! Check your email for the discount code.');
+        document.getElementById(\`smartpop-\${popupId}\`)?.remove();
+      } else {
+        console.log('❌ Email validation failed');
+        emailInput.style.borderColor = '#ff3b30';
+        emailInput.focus();
+        setTimeout(() => {
+          emailInput.style.borderColor = '#ddd';
+        }, 2000);
+      }
+    };
+
     window.submitSmartPopup = (id) => {
       const popup = document.getElementById(id);
       const emailInput = popup.querySelector('.smartpop-email');
@@ -1649,12 +1683,12 @@ serve(async (req) => {
             \${popup.description || 'Get a special discount!'}
           </p>
           
-          <input type="email" placeholder="\${popup.email_placeholder || 'Enter your email'}" 
+          <input type="email" id="email-input-\${popup.id}" placeholder="\${popup.email_placeholder || 'Enter your email'}" 
                  style="width: 100%; padding: 12px; border: 2px solid #ddd;
                         border-radius: 6px; font-size: 16px; margin-bottom: 16px;
                         box-sizing: border-box;">
           
-          <button onclick="alert('Thank you!'); document.getElementById('smartpop-\${popup.id}').remove();" 
+          <button onclick="handlePopupSubmit('\${popup.id}')" 
                   style="background: #007cba; color: white; border: none;
                          padding: 14px 28px; border-radius: 6px; font-size: 16px;
                          cursor: pointer; width: 100%;">
