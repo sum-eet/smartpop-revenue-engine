@@ -77,6 +77,103 @@ serve(async (req) => {
   let currentScrollDepth = 0;
   let timeOnSite = 0;
   let hasExitIntent = false;
+
+  // GLOBAL EMAIL VALIDATION - Available to all popup types
+  window.validateEmail = function(email) {
+    console.log('🔍 Validating email:', email);
+    
+    // Basic checks first
+    if (!email || typeof email !== 'string') {
+      console.log('❌ Email is empty or not string');
+      return false;
+    }
+    
+    const cleanEmail = email.trim();
+    
+    // Length validation
+    if (cleanEmail.length < 3 || cleanEmail.length > 254) {
+      console.log('❌ Email length invalid:', cleanEmail.length);
+      return false;
+    }
+    
+    // Must contain exactly one @
+    const atCount = (cleanEmail.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      console.log('❌ Must contain exactly one @, found:', atCount);
+      return false;
+    }
+    
+    // Split by @
+    const parts = cleanEmail.split('@');
+    const [local, domain] = parts;
+    
+    // Local part (before @) validation
+    if (!local || local.length === 0) {
+      console.log('❌ Missing local part (before @)');
+      return false;
+    }
+    
+    // Domain part (after @) validation  
+    if (!domain || domain.length === 0) {
+      console.log('❌ Missing domain part (after @)');
+      return false;
+    }
+    
+    // Domain MUST contain at least one dot
+    if (!domain.includes('.')) {
+      console.log('❌ Domain must contain at least one dot');
+      return false;
+    }
+    
+    // Domain must not start or end with dot
+    if (domain.startsWith('.') || domain.endsWith('.')) {
+      console.log('❌ Domain cannot start or end with dot');
+      return false;
+    }
+    
+    // Domain must have something after the last dot (TLD)
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+    if (!tld || tld.length < 2) {
+      console.log('❌ Invalid TLD:', tld);
+      return false;
+    }
+    
+    // Basic character validation (simplified but effective)
+    const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      console.log('❌ Failed regex test');
+      return false;
+    }
+    
+    console.log('✅ Email validation passed');
+    return true;
+  };
+
+  // GLOBAL POPUP SUBMIT HANDLER - Available to all popup types
+  window.handlePopupSubmit = function(popupId) {
+    const emailInput = document.getElementById(\`email-input-\${popupId}\`);
+    if (!emailInput) {
+      console.error('❌ Email input not found for popup:', popupId);
+      return;
+    }
+    
+    const email = emailInput.value.trim();
+    console.log('🔍 Popup submit attempt:', { popupId, email });
+    
+    if (window.validateEmail(email)) {
+      console.log('✅ Email validation passed - submitting');
+      alert('Thank you! Check your email for the discount code.');
+      document.getElementById(\`smartpop-\${popupId}\`)?.remove();
+    } else {
+      console.log('❌ Email validation failed');
+      emailInput.style.borderColor = '#ff3b30';
+      emailInput.focus();
+      setTimeout(() => {
+        emailInput.style.borderColor = '#ddd';
+      }, 2000);
+    }
+  };
   
   // Progressive Smart Exit Intent System
   let smartExitIntent = {
