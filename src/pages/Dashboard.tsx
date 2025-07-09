@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye, Edit, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye, Edit, Trash2, TrendingUp, Clock, Smartphone, Monitor } from 'lucide-react';
 import { PopupCreationModal } from '@/components/PopupCreationModal';
 
 const Dashboard = () => {
@@ -20,7 +21,9 @@ const Dashboard = () => {
     conversionRate: 0,
     byPopup: []
   });
+  const [comprehensiveAnalytics, setComprehensiveAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState('7d');
 
   // Calculate total revenue (mock calculation: $5 per conversion)
   const revenuePerConversion = 5;
@@ -34,6 +37,11 @@ const Dashboard = () => {
     fetchPopups();
     fetchAnalytics();
   }, []);
+
+  // Refetch analytics when timeframe changes
+  useEffect(() => {
+    fetchAnalytics();
+  }, [timeframe]);
 
   const fetchPopups = async () => {
     try {
@@ -58,10 +66,19 @@ const Dashboard = () => {
   const fetchAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?shop=testingstoresumeet.myshopify.com');
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
+      
+      // Fetch basic analytics for backwards compatibility
+      const basicResponse = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?shop=testingstoresumeet.myshopify.com');
+      if (basicResponse.ok) {
+        const basicData = await basicResponse.json();
+        setAnalytics(basicData);
+      }
+
+      // Fetch comprehensive analytics
+      const comprehensiveResponse = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?analytics=true&shop=testingstoresumeet.myshopify.com&timeframe=${timeframe}`);
+      if (comprehensiveResponse.ok) {
+        const comprehensiveData = await comprehensiveResponse.json();
+        setComprehensiveAnalytics(comprehensiveData);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -124,49 +141,73 @@ const Dashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Timeframe Selector */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold">Analytics Overview</h2>
+          <Select value={timeframe} onValueChange={setTimeframe}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1d">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="all">All time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+12.5% from last month</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversions</CardTitle>
-              <MousePointer className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalConversions.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+8.2% from last month</p>
-            </CardContent>
-          </Card>
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Popup Views</CardTitle>
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+15.3% from last month</p>
+              <div className="text-2xl font-bold">
+                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_popup_views.toLocaleString() : totalViews.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">Total impressions</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">Email Opt-ins</CardTitle>
+              <MousePointer className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_email_optins.toLocaleString() : totalConversions.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">Email captures</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Optin Conversion Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.optin_conversion_rate.toFixed(1) : avgConversionRate.toFixed(1)}%
+              </div>
+              <p className="text-xs text-muted-foreground">Views to emails</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Abandonment Rate</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{avgConversionRate.toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground">+2.1% from last month</p>
+              <div className="text-2xl font-bold">
+                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.abandonment_rate.toFixed(1) : '0.0'}%
+              </div>
+              <p className="text-xs text-muted-foreground">Views without conversion</p>
             </CardContent>
           </Card>
         </div>
@@ -335,28 +376,103 @@ const Dashboard = () => {
           </TabsContent>
           
           <TabsContent value="analytics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics Dashboard</CardTitle>
-                <CardDescription>
-                  Detailed performance metrics and insights
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analyticsLoading ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500">Loading analytics...</div>
-                  </div>
-                ) : analytics.byPopup?.length > 0 ? (
-                  <div className="space-y-6">
+            {analyticsLoading ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <div className="text-gray-500">Loading comprehensive analytics...</div>
+                </CardContent>
+              </Card>
+            ) : comprehensiveAnalytics ? (
+              <div className="space-y-6">
+                {/* Device Analytics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Smartphone className="h-5 w-5" />
+                        Device Performance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Smartphone className="h-8 w-8 text-blue-600" />
+                            <div>
+                              <div className="font-semibold">Mobile</div>
+                              <div className="text-sm text-gray-600">{comprehensiveAnalytics.device_analytics.mobile.views} views</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{comprehensiveAnalytics.device_analytics.mobile.optin_conversion_rate}%</div>
+                            <div className="text-sm text-gray-600">{comprehensiveAnalytics.device_analytics.mobile.conversions} conversions</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Monitor className="h-8 w-8 text-green-600" />
+                            <div>
+                              <div className="font-semibold">Desktop</div>
+                              <div className="text-sm text-gray-600">{comprehensiveAnalytics.device_analytics.desktop.views} views</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{comprehensiveAnalytics.device_analytics.desktop.optin_conversion_rate}%</div>
+                            <div className="text-sm text-gray-600">{comprehensiveAnalytics.device_analytics.desktop.conversions} conversions</div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Peak Hours */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        Peak Hours (Last 7 Days)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {comprehensiveAnalytics.peak_hours.slice(0, 5).map((hour: any, index: number) => (
+                          <div key={hour.hour} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">
+                                #{index + 1}
+                              </div>
+                              <div>
+                                <div className="font-semibold">{hour.hour_display}</div>
+                                <div className="text-sm text-gray-600">{hour.views} views</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-purple-600">{hour.optin_conversion_rate}%</div>
+                              <div className="text-sm text-gray-600">{hour.conversions} conversions</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Top Performing Popups */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Top Performing Popups</CardTitle>
+                    <CardDescription>Best converting popups by optin rate</CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {analytics.byPopup.map((popup: any) => (
-                        <Card key={popup.popupId}>
+                      {comprehensiveAnalytics.top_performing_popups.map((popup: any) => (
+                        <Card key={popup.popup_id} className="bg-gradient-to-br from-blue-50 to-purple-50">
                           <CardHeader className="pb-3">
-                            <CardTitle className="text-base">{popup.popupName}</CardTitle>
+                            <CardTitle className="text-base">{popup.name}</CardTitle>
                             <CardDescription>
                               <Badge variant="outline" className="text-xs">
-                                {popup.popupType?.replace('_', ' ')}
+                                {popup.popup_type?.replace('_', ' ')}
                               </Badge>
                             </CardDescription>
                           </CardHeader>
@@ -364,66 +480,108 @@ const Dashboard = () => {
                             <div className="space-y-2">
                               <div className="flex justify-between">
                                 <span className="text-sm text-gray-600">Views:</span>
-                                <span className="font-medium">{popup.views}</span>
+                                <span className="font-medium">{popup.views.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-sm text-gray-600">Conversions:</span>
-                                <span className="font-medium">{popup.conversions}</span>
+                                <span className="font-medium">{popup.conversions.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Closes:</span>
-                                <span className="font-medium">{popup.closes}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Conversion Rate:</span>
-                                <span className="font-medium">{popup.conversionRate.toFixed(1)}%</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Est. Revenue:</span>
-                                <span className="font-medium">${(popup.conversions * revenuePerConversion).toFixed(2)}</span>
+                                <span className="text-sm text-gray-600">Optin Rate:</span>
+                                <span className="font-bold text-green-600">{popup.optin_conversion_rate}%</span>
                               </div>
                             </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Overall Performance</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{analytics.views}</div>
-                            <div className="text-sm text-gray-600">Total Views</div>
+                {/* Page Performance & Popup Types */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top Converting Pages</CardTitle>
+                      <CardDescription>Pages with highest popup conversion rates</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {comprehensiveAnalytics.top_pages.slice(0, 5).map((page: any, index: number) => (
+                          <div key={page.page_url} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{page.page_name}</div>
+                              <div className="text-sm text-gray-600 truncate">{page.page_url}</div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="font-bold text-blue-600">{page.optin_conversion_rate}%</div>
+                              <div className="text-sm text-gray-600">{page.conversions}/{page.views}</div>
+                            </div>
                           </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">{analytics.conversions}</div>
-                            <div className="text-sm text-gray-600">Total Conversions</div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Popup Type Performance</CardTitle>
+                      <CardDescription>Performance by popup type</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {comprehensiveAnalytics.popup_type_performance.map((type: any) => (
+                          <div key={type.popup_type} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <div className="font-medium">{type.type_display}</div>
+                              <div className="text-sm text-gray-600">{type.views} views</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-green-600">{type.optin_conversion_rate}%</div>
+                              <div className="text-sm text-gray-600">{type.conversions} conversions</div>
+                            </div>
                           </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-orange-600">{analytics.closes}</div>
-                            <div className="text-sm text-gray-600">Total Closes</div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Recent Activity */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>Latest popup interactions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {comprehensiveAnalytics.recent_activity.slice(0, 20).map((activity: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-2 text-sm border-b last:border-b-0">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={activity.event_type === 'conversion' ? 'default' : 'secondary'} className="text-xs">
+                              {activity.event_type}
+                            </Badge>
+                            <span className="text-gray-600">{activity.email || 'Anonymous'}</span>
                           </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-purple-600">{analytics.conversionRate.toFixed(1)}%</div>
-                            <div className="text-sm text-gray-600">Avg Conversion Rate</div>
+                          <div className="text-right">
+                            <div className="text-gray-500">{activity.time_ago}</div>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500 mb-4">No analytics data available yet</div>
-                    <p className="text-sm text-gray-400">
-                      Analytics will appear here once your popups start receiving views and interactions.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <div className="text-gray-500 mb-4">No comprehensive analytics available</div>
+                  <p className="text-sm text-gray-400">
+                    Analytics will appear here once your popups start receiving views and interactions.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
           
           <TabsContent value="settings" className="space-y-6">

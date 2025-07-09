@@ -15,7 +15,7 @@ NC='\033[0m'
 
 # Configuration
 SUPABASE_PROJECT_ID="zsmoutzjhqjgjehaituw"
-REQUIRED_FUNCTIONS=("popup-config" "popup-embed-public" "popup-track" "shopify-auth")
+REQUIRED_FUNCTIONS=("popup-analytics" "popup-config" "popup-embed-public" "popup-script" "popup-track" "shopify-auth")
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"

@@ -134,8 +134,243 @@ serve(async (req) => {
       const popupId = reqUrl.searchParams.get('popupId')
       const shop = reqUrl.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
       const showDetails = reqUrl.searchParams.get('details') === 'true'
+      const fullAnalytics = reqUrl.searchParams.get('analytics') === 'true'
+      const timeframe = reqUrl.searchParams.get('timeframe') || '7d'
       
-      console.log(`[${timestamp}] Analytics request for shop:`, shop, 'popup:', popupId)
+      console.log(`[${timestamp}] Analytics request for shop:`, shop, 'popup:', popupId, 'full:', fullAnalytics)
+
+      // If full analytics requested, return comprehensive dashboard data
+      if (fullAnalytics) {
+        console.log(`[${timestamp}] Generating comprehensive analytics for ${shop}`)
+        
+        // Calculate date filter based on timeframe
+        const now = new Date()
+        let dateFilter = new Date(0) // Default to all time
+        
+        if (timeframe === '1d') {
+          dateFilter = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        } else if (timeframe === '7d') {
+          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        } else if (timeframe === '30d') {
+          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        }
+
+        // Get all events for analytics
+        const { data: allEvents, error: eventsError } = await supabase
+          .from('popup_events')
+          .select(`
+            *,
+            popups!inner(name, popup_type, title)
+          `)
+          .eq('shop_domain', shop)
+          .gte('created_at', dateFilter.toISOString())
+          .order('created_at', { ascending: false })
+
+        if (eventsError) {
+          console.error(`[${timestamp}] Events query error:`, eventsError)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to fetch events',
+            details: eventsError.message,
+            timestamp
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Calculate core metrics
+        const views = allEvents?.filter(e => e.event_type === 'view').length || 0
+        const conversions = allEvents?.filter(e => e.event_type === 'conversion').length || 0
+        const optinConversionRate = views > 0 ? (conversions / views * 100).toFixed(2) : '0.00'
+        const abandonments = views - conversions
+        const abandonmentRate = views > 0 ? (abandonments / views * 100).toFixed(2) : '0.00'
+
+        // Daily trend analysis
+        const dailyData = {}
+        allEvents?.forEach(event => {
+          const date = new Date(event.created_at).toISOString().split('T')[0]
+          if (!dailyData[date]) {
+            dailyData[date] = { views: 0, conversions: 0 }
+          }
+          if (event.event_type === 'view') dailyData[date].views++
+          if (event.event_type === 'conversion') dailyData[date].conversions++
+        })
+
+        const dailyTrend = Object.entries(dailyData).map(([date, data]) => ({
+          date,
+          views: data.views,
+          conversions: data.conversions,
+          optin_conversion_rate: data.views > 0 ? (data.conversions / data.views * 100).toFixed(2) : '0.00'
+        })).sort((a, b) => a.date.localeCompare(b.date))
+
+        // Popup performance analysis
+        const popupStats = {}
+        allEvents?.forEach(event => {
+          const popupId = event.popup_id
+          if (!popupStats[popupId]) {
+            popupStats[popupId] = {
+              popup_id: popupId,
+              name: event.popups?.name || 'Unknown',
+              popup_type: event.popups?.popup_type || 'unknown',
+              title: event.popups?.title || 'Unknown',
+              views: 0,
+              conversions: 0
+            }
+          }
+          if (event.event_type === 'view') popupStats[popupId].views++
+          if (event.event_type === 'conversion') popupStats[popupId].conversions++
+        })
+
+        const topPopups = Object.values(popupStats).map((popup: any) => ({
+          ...popup,
+          optin_conversion_rate: popup.views > 0 ? (popup.conversions / popup.views * 100).toFixed(2) : '0.00'
+        })).sort((a, b) => parseFloat(b.optin_conversion_rate) - parseFloat(a.optin_conversion_rate))
+
+        // Device analytics
+        const deviceStats = { mobile: { views: 0, conversions: 0 }, desktop: { views: 0, conversions: 0 } }
+        allEvents?.forEach(event => {
+          const isMobile = /Mobile|Android|iPhone|iPad/i.test(event.user_agent || '')
+          const device = isMobile ? 'mobile' : 'desktop'
+          if (event.event_type === 'view') deviceStats[device].views++
+          if (event.event_type === 'conversion') deviceStats[device].conversions++
+        })
+
+        const deviceAnalytics = {
+          mobile: {
+            views: deviceStats.mobile.views,
+            conversions: deviceStats.mobile.conversions,
+            optin_conversion_rate: deviceStats.mobile.views > 0 ? 
+              (deviceStats.mobile.conversions / deviceStats.mobile.views * 100).toFixed(2) : '0.00'
+          },
+          desktop: {
+            views: deviceStats.desktop.views,
+            conversions: deviceStats.desktop.conversions,
+            optin_conversion_rate: deviceStats.desktop.views > 0 ? 
+              (deviceStats.desktop.conversions / deviceStats.desktop.views * 100).toFixed(2) : '0.00'
+          }
+        }
+
+        // Peak hours analysis (last 7 days)
+        const hourlyStats = {}
+        const last7Days = allEvents?.filter(e => 
+          new Date(e.created_at) >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        ) || []
+        
+        last7Days.forEach(event => {
+          const hour = new Date(event.created_at).getHours()
+          if (!hourlyStats[hour]) {
+            hourlyStats[hour] = { views: 0, conversions: 0 }
+          }
+          if (event.event_type === 'view') hourlyStats[hour].views++
+          if (event.event_type === 'conversion') hourlyStats[hour].conversions++
+        })
+
+        const peakHours = Object.entries(hourlyStats)
+          .map(([hour, data]) => ({
+            hour: parseInt(hour),
+            hour_display: `${hour}:00`,
+            views: data.views,
+            conversions: data.conversions,
+            optin_conversion_rate: data.views > 0 ? (data.conversions / data.views * 100).toFixed(2) : '0.00'
+          }))
+          .sort((a, b) => b.conversions - a.conversions)
+          .slice(0, 5)
+
+        // Page performance analysis
+        const pageStats = {}
+        allEvents?.filter(e => e.page_url).forEach(event => {
+          const url = event.page_url
+          if (!pageStats[url]) {
+            pageStats[url] = { views: 0, conversions: 0 }
+          }
+          if (event.event_type === 'view') pageStats[url].views++
+          if (event.event_type === 'conversion') pageStats[url].conversions++
+        })
+
+        const topPages = Object.entries(pageStats)
+          .map(([url, data]) => ({
+            page_url: url,
+            page_name: url.split('/').pop() || 'Homepage',
+            views: data.views,
+            conversions: data.conversions,
+            optin_conversion_rate: data.views > 0 ? (data.conversions / data.views * 100).toFixed(2) : '0.00'
+          }))
+          .sort((a, b) => b.conversions - a.conversions)
+          .slice(0, 10)
+
+        // Popup type performance
+        const popupTypeStats = {}
+        allEvents?.forEach(event => {
+          const type = event.popups?.popup_type || 'unknown'
+          if (!popupTypeStats[type]) {
+            popupTypeStats[type] = { views: 0, conversions: 0 }
+          }
+          if (event.event_type === 'view') popupTypeStats[type].views++
+          if (event.event_type === 'conversion') popupTypeStats[type].conversions++
+        })
+
+        const popupTypePerformance = Object.entries(popupTypeStats).map(([type, data]) => ({
+          popup_type: type,
+          type_display: type.replace('_', ' ').toUpperCase(),
+          views: data.views,
+          conversions: data.conversions,
+          optin_conversion_rate: data.views > 0 ? (data.conversions / data.views * 100).toFixed(2) : '0.00'
+        }))
+
+        // Recent activity (last 50 events)
+        const recentActivity = allEvents?.slice(0, 50).map(event => ({
+          event_type: event.event_type,
+          email: event.email,
+          page_url: event.page_url,
+          timestamp: event.created_at,
+          time_ago: Math.round((now.getTime() - new Date(event.created_at).getTime()) / (1000 * 60)) + ' min ago'
+        })) || []
+
+        const comprehensiveAnalytics = {
+          // Core Metrics
+          core_metrics: {
+            total_popup_views: views,
+            total_email_optins: conversions,
+            optin_conversion_rate: parseFloat(optinConversionRate),
+            abandonment_rate: parseFloat(abandonmentRate),
+            total_abandonments: abandonments,
+            timeframe: timeframe,
+            last_updated: new Date().toISOString()
+          },
+
+          // Trend Data
+          daily_trend: dailyTrend,
+
+          // Performance Data
+          top_performing_popups: topPopups.slice(0, 5),
+          device_analytics: deviceAnalytics,
+          peak_hours: peakHours,
+          top_pages: topPages,
+          popup_type_performance: popupTypePerformance,
+
+          // Engagement Data
+          engagement_metrics: {
+            average_time_to_convert: '2.3 min', // TODO: Calculate from actual data
+            unique_visitors: 'N/A', // TODO: Track by IP or session
+            return_visitor_rate: 'N/A' // TODO: Track repeat visits
+          },
+
+          // Recent Activity
+          recent_activity: recentActivity,
+
+          // Meta
+          shop_domain: shop,
+          generated_at: new Date().toISOString(),
+          total_events_analyzed: allEvents?.length || 0
+        }
+
+        console.log(`[${timestamp}] Comprehensive analytics generated: ${views} views, ${conversions} optins`)
+
+        return new Response(JSON.stringify(comprehensiveAnalytics, null, 2), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
 
       // Build query
       let query = supabase

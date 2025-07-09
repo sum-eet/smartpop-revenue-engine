@@ -19,19 +19,7 @@ verify_jwt = false
 [functions.popup-actions]
 verify_jwt = false
 
-[functions.popup-delete]
-verify_jwt = false
-
 [functions.popup-simple]
-verify_jwt = false
-
-[functions.popup-edit]
-verify_jwt = false
-
-[functions.popup-create]
-verify_jwt = false
-
-[functions.popup-update]
 verify_jwt = false
 
 [functions.install-direct]
