@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { authenticateRequest, createErrorResponse, createSuccessResponse } from '../_shared/session-auth.ts'
+import { invalidateDashboardCache, warmupCache } from '../_shared/performance-cache.ts'
+import { processEventWebhook } from '../event-processor/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,7 +79,7 @@ serve(async (req) => {
           .insert([{
             popup_id: eventData.popupId,
             event_type: eventData.eventType,
-            shop_domain: eventData.shop || 'testingstoresumeet.myshopify.com',
+            shop_domain: eventData.shop || null, // No default shop domain for security
             page_url: eventData.pageUrl || null,
             email: eventData.email || null,
             discount_code_used: eventData.discountCode || null,
@@ -107,6 +110,26 @@ serve(async (req) => {
         }
 
         console.log(`[${timestamp}] Event tracked successfully:`, data?.[0]?.id)
+        
+        // Process event for real-time aggregations and cache invalidation
+        try {
+          await processEventWebhook(supabase, {
+            popup_id: eventData.popupId,
+            event_type: eventData.eventType,
+            shop_domain: eventData.shop || 'unknown',
+            session_id: eventData.sessionId,
+            visitor_ip: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || '',
+            user_agent: req.headers.get('User-Agent') || '',
+            page_url: eventData.pageUrl,
+            email: eventData.email,
+            timestamp: timestamp,
+            metadata: eventData.metadata || {}
+          }, timestamp);
+        } catch (processingError) {
+          console.warn(`[${timestamp}] Event processing failed:`, processingError);
+          // Don't fail the main request if processing fails
+        }
+
         return new Response(JSON.stringify({ 
           success: true, 
           event: data?.[0],
@@ -129,15 +152,21 @@ serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      // Get analytics (no auth required for basic analytics)
+      // Authenticate analytics requests
+      const auth = await authenticateRequest(req);
+      
+      if (!auth.isAuthenticated) {
+        return createErrorResponse(auth.error || 'Authentication required for analytics', 401, corsHeaders);
+      }
+
       const reqUrl = new URL(req.url)
       const popupId = reqUrl.searchParams.get('popupId')
-      const shop = reqUrl.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
+      const shop = auth.shop // Use authenticated shop
       const showDetails = reqUrl.searchParams.get('details') === 'true'
       const fullAnalytics = reqUrl.searchParams.get('analytics') === 'true'
       const timeframe = reqUrl.searchParams.get('timeframe') || '7d'
       
-      console.log(`[${timestamp}] Analytics request for shop:`, shop, 'popup:', popupId, 'full:', fullAnalytics)
+      console.log(`[${timestamp}] Analytics request for authenticated shop:`, shop, 'popup:', popupId, 'full:', fullAnalytics, 'embedded:', auth.isEmbedded)
 
       // If full analytics requested, return comprehensive dashboard data
       if (fullAnalytics) {

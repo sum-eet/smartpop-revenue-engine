@@ -1,0 +1,20 @@
+{
+  "name": "smartpop-checkout-ui-extension",
+  "version": "1.0.0",
+  "description": "SmartPop Checkout UI Extension for capturing leads during checkout",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "shopify app build",
+    "dev": "shopify app dev",
+    "deploy": "shopify app deploy"
+  },
+  "dependencies": {
+    "@shopify/ui-extensions": "^2023.10.0",
+    "@shopify/ui-extensions-react": "^2023.10.0",
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

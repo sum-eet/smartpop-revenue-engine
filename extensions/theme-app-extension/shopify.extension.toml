@@ -1,0 +1,38 @@
+api_version = "2023-10"
+type = "theme_app_extension"
+name = "SmartPop Revenue Engine"
+handle = "smartpop-revenue-engine"
+
+[extension_points]
+  [extension_points.metafields]
+    namespace = "smartpop"
+    key = "config"
+    
+[settings]
+  [settings.popup_enabled]
+    type = "boolean"
+    label = "Enable SmartPop Popups"
+    default = true
+    
+  [settings.popup_position]
+    type = "select"
+    label = "Popup Position"
+    options = [
+      { value = "center", label = "Center" },
+      { value = "bottom-right", label = "Bottom Right" },
+      { value = "top-center", label = "Top Center" }
+    ]
+    default = "center"
+    
+  [settings.popup_timing]
+    type = "range"
+    label = "Popup Delay (seconds)"
+    min = 0
+    max = 60
+    step = 1
+    default = 5
+    
+  [settings.debug_mode]
+    type = "boolean"
+    label = "Debug Mode"
+    default = false

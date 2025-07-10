@@ -28,7 +28,7 @@ serve(async (req) => {
     // Handle OAuth callback
     if (code && shop) {
       console.log('Processing OAuth callback for shop:', shop)
-      const clientId = Deno.env.get('SHOPIFY_CLIENT_ID')
+      const clientId = 'd7bfdbad9277b52215d6e9dcf936f068' // From shopify.app.toml
       const clientSecret = Deno.env.get('SHOPIFY_CLIENT_SECRET')
       
       // Exchange code for access token
@@ -89,15 +89,15 @@ serve(async (req) => {
           }
         }
         
-        // Redirect to success page with shop parameter
-        const successUrl = `https://smartpop-revenue-engine.vercel.app/auth/shopify?shop=${shop}`
-        console.log('Redirecting to success URL:', successUrl)
+        // Redirect to Shopify admin app page to keep user in iframe
+        const adminAppUrl = `https://${shop}/admin/apps/smartpop-revenue-engine`
+        console.log('Redirecting to Shopify admin app:', adminAppUrl)
         
         return new Response(null, {
           status: 302,
           headers: {
             ...corsHeaders,
-            'Location': successUrl
+            'Location': adminAppUrl
           }
         })
       }
@@ -106,10 +106,9 @@ serve(async (req) => {
     // Handle initial OAuth request
     if (shop) {
       console.log('Initiating OAuth for shop:', shop)
-      const clientId = Deno.env.get('SHOPIFY_CLIENT_ID')
-      // Fix: Use the correct redirect URI that matches your route
+      const clientId = 'd7bfdbad9277b52215d6e9dcf936f068' // From shopify.app.toml
       const redirectUri = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth`
-      const scopes = 'read_orders,read_customers,write_script_tags'
+      const scopes = 'write_script_tags,read_script_tags,read_themes,write_themes' // From shopify.app.toml
       
       const authUrl = `https://${shop}/admin/oauth/authorize?` +
         `client_id=${clientId}&` +

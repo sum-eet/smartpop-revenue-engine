@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { authenticateRequest, createErrorResponse, createSuccessResponse } from '../_shared/session-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,9 +14,22 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate request
+    const auth = await authenticateRequest(req);
+    
+    if (!auth.isAuthenticated) {
+      return createErrorResponse(auth.error || 'Authentication failed', 401, corsHeaders);
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const supabase = createClient(supabaseUrl!, supabaseKey!)
+
+    console.log('=== POPUP CONFIG REQUEST ===')
+    console.log('Method:', req.method)
+    console.log('Shop:', auth.shop)
+    console.log('User:', auth.user)
+    console.log('Is Embedded:', auth.isEmbedded)
 
     if (req.method === 'POST') {
       const body = await req.json()
@@ -210,13 +224,13 @@ serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      // 🛡️ SECURITY FIX: Shop-scoped popup retrieval with backward compatibility
+      // Use authenticated shop domain
+      const shop = auth.shop;
       const url = new URL(req.url)
-      const shop = url.searchParams.get('shop') || url.searchParams.get('shop_domain')
       const dashboard = url.searchParams.get('dashboard') === 'true'
       const emails = url.searchParams.get('emails') === 'true'
       
-      console.log('🔍 GET Request:', { shop, dashboard, emails, url: req.url })
+      console.log('🔍 GET Request:', { shop, dashboard, emails, authenticated: auth.isAuthenticated, embedded: auth.isEmbedded })
       
       // 📧 EMAIL SUBSCRIBERS ENDPOINT
       if (emails && shop) {

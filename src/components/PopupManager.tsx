@@ -47,6 +47,12 @@ export const PopupManager: React.FC = () => {
       return true;
     }
     
+    // Block install and auth pages
+    if (currentPath.includes('/install') || currentPath.includes('/auth')) {
+      console.log('🚫 SmartPop: Blocked install/auth page:', currentPath);
+      return true;
+    }
+    
     // Block if in iframe (likely admin)
     if (window !== window.top) {
       console.log('🚫 SmartPop: Blocked iframe context');

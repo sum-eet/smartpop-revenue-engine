@@ -1,96 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye, Edit, Trash2, TrendingUp, Clock, Smartphone, Monitor } from 'lucide-react';
+import { AnalyticsCardsSkeleton, PopupTableSkeleton } from '@/components/ui/skeleton';
+import { Plus, BarChart3, Users, DollarSign, MousePointer, Settings, Eye, Edit, Trash2, TrendingUp, Clock, Smartphone, Monitor, Activity } from 'lucide-react';
 import { PopupCreationModal } from '@/components/PopupCreationModal';
+import { usePopups, useTogglePopup, useDeletePopup } from '@/hooks/usePopups';
+import { useBasicAnalytics, useComprehensiveAnalytics } from '@/hooks/useAnalytics';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useAppBridge } from '@/hooks/useAppBridge';
+import { featureFlags } from '@/lib/featureFlags';
+import DashboardPolarisSimple from './DashboardPolarisSimple';
+import { AdvancedAnalytics } from '@/components/analytics/AdvancedAnalytics';
 
 const Dashboard = () => {
+  // Feature flag check - render Polaris version if enabled
+  if (featureFlags.enablePolarisLayout) {
+    return <DashboardPolarisSimple />;
+  }
+
+  // Original Dashboard implementation (fallback)
   const [isPopupModalOpen, setIsPopupModalOpen] = useState(false);
   const [editingPopup, setEditingPopup] = useState(null);
-  const [popups, setPopups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [duplicateIds, setDuplicateIds] = useState([]);
-  const [analytics, setAnalytics] = useState({
-    totalEvents: 0,
-    views: 0,
-    conversions: 0,
-    closes: 0,
-    conversionRate: 0,
-    byPopup: []
-  });
-  const [comprehensiveAnalytics, setComprehensiveAnalytics] = useState(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('7d');
+  const [duplicateIds, setDuplicateIds] = useState([]);
+  
+  // App Bridge integration
+  const { isEmbedded, shopDomain, isInitialized, error: appBridgeError } = useAppBridge();
+  
+  // Debounce timeframe changes to prevent excessive API calls
+  const debouncedTimeframe = useDebounce(timeframe, 300);
+  
+  // Track loading state for timeframe changes
+  const timeframeLoading = timeframe !== debouncedTimeframe;
+  
+  // React Query hooks for data fetching
+  const { data: popups = [], isLoading: loading, error: popupsError } = usePopups();
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useBasicAnalytics();
+  const { 
+    data: comprehensiveAnalytics, 
+    isLoading: comprehensiveAnalyticsLoading, 
+    error: comprehensiveAnalyticsError 
+  } = useComprehensiveAnalytics(debouncedTimeframe);
+  
+  // Mutations for popup operations
+  const togglePopupMutation = useTogglePopup();
+  const deletePopupMutation = useDeletePopup();
 
-  // Calculate total revenue (mock calculation: $5 per conversion)
+  // Memoized calculations for performance
   const revenuePerConversion = 5;
-  const totalRevenue = analytics.conversions * revenuePerConversion;
-  const totalConversions = analytics.conversions;
-  const totalViews = analytics.views;
-  const avgConversionRate = analytics.conversionRate;
-
-  // Fetch popups and analytics from API
-  useEffect(() => {
-    fetchPopups();
-    fetchAnalytics();
-  }, []);
-
-  // Refetch analytics when timeframe changes
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeframe]);
-
-  const fetchPopups = async () => {
-    try {
-      setLoading(true);
-      // Fetch all popups including inactive ones for dashboard
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?shop=testingstoresumeet.myshopify.com&dashboard=true');
-      if (response.ok) {
-        const data = await response.json();
-        
-        console.log(`Fetched ${data.length} popups from API`);
-        console.log('Popup IDs from API:', data.map(p => p.id));
-        
-        setPopups(data);
-      }
-    } catch (error) {
-      console.error('Error fetching popups:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnalytics = async () => {
-    try {
-      setAnalyticsLoading(true);
-      
-      // Fetch basic analytics for backwards compatibility
-      const basicResponse = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?shop=testingstoresumeet.myshopify.com');
-      if (basicResponse.ok) {
-        const basicData = await basicResponse.json();
-        setAnalytics(basicData);
-      }
-
-      // Fetch comprehensive analytics
-      const comprehensiveResponse = await fetch(`https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track?analytics=true&shop=testingstoresumeet.myshopify.com&timeframe=${timeframe}`);
-      if (comprehensiveResponse.ok) {
-        const comprehensiveData = await comprehensiveResponse.json();
-        setComprehensiveAnalytics(comprehensiveData);
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
-  const handleEditPopup = (popup: any) => {
+  const calculatedMetrics = useMemo(() => {
+    if (!analytics) return { totalRevenue: 0, totalConversions: 0, totalViews: 0, avgConversionRate: 0 };
+    
+    return {
+      totalRevenue: analytics.conversions * revenuePerConversion,
+      totalConversions: analytics.conversions,
+      totalViews: analytics.views,
+      avgConversionRate: analytics.conversionRate
+    };
+  }, [analytics, revenuePerConversion]);
+  
+  const { totalRevenue, totalConversions, totalViews, avgConversionRate } = calculatedMetrics;
+  
+  // Optimized handlers using React Query mutations
+  const handleEditPopup = useCallback((popup: any) => {
     setEditingPopup(popup);
     setIsPopupModalOpen(true);
-  };
+  }, []);
+  
+  const handleTogglePopup = useCallback(async (popupId: string, currentStatus: boolean) => {
+    try {
+      await togglePopupMutation.mutateAsync({
+        id: popupId,
+        is_active: !currentStatus
+      });
+    } catch (error) {
+      console.error('Error toggling popup:', error);
+    }
+  }, [togglePopupMutation]);
+  
+  const handleDeletePopup = useCallback(async (popupId: string) => {
+    if (window.confirm('Are you sure you want to delete this popup?')) {
+      try {
+        await deletePopupMutation.mutateAsync(popupId);
+      } catch (error) {
+        console.error('Error deleting popup:', error);
+      }
+    }
+  }, [deletePopupMutation]);
 
   const getPopupTypeColor = (type: string) => {
     switch (type) {
@@ -113,8 +112,8 @@ const Dashboard = () => {
     }
   };
 
-  // Check if running inside Shopify admin iframe
-  const isInShopifyFrame = window !== window.top;
+  // Use App Bridge embedded status instead of manual iframe detection
+  const isInShopifyFrame = isEmbedded;
 
   return (
     <div className={`${isInShopifyFrame ? 'min-h-full' : 'min-h-screen'} bg-gray-50`}>
@@ -124,7 +123,10 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">SmartPop Dashboard</h1>
-              <p className="text-gray-600">My Awesome Store</p>
+              <p className="text-gray-600">
+                {shopDomain || 'My Awesome Store'}
+                {isEmbedded && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Embedded</span>}
+              </p>
             </div>
             <Button 
               className="bg-blue-600 hover:bg-blue-700"
@@ -144,79 +146,115 @@ const Dashboard = () => {
         {/* Timeframe Selector */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Analytics Overview</h2>
-          <Select value={timeframe} onValueChange={setTimeframe}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1d">Last 24 hours</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="all">All time</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            {timeframeLoading && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                Loading...
+              </div>
+            )}
+            <Select value={timeframe} onValueChange={setTimeframe} disabled={timeframeLoading}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1d">Last 24 hours</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Popup Views</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_popup_views.toLocaleString() : totalViews.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">Total impressions</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Email Opt-ins</CardTitle>
-              <MousePointer className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_email_optins.toLocaleString() : totalConversions.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">Email captures</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Optin Conversion Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.optin_conversion_rate.toFixed(1) : avgConversionRate.toFixed(1)}%
-              </div>
-              <p className="text-xs text-muted-foreground">Views to emails</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Abandonment Rate</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.abandonment_rate.toFixed(1) : '0.0'}%
-              </div>
-              <p className="text-xs text-muted-foreground">Views without conversion</p>
-            </CardContent>
-          </Card>
-        </div>
+        {analyticsLoading || comprehensiveAnalyticsLoading ? (
+          <AnalyticsCardsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="relative">
+              {comprehensiveAnalyticsLoading && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Popup Views</CardTitle>
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_popup_views.toLocaleString() : totalViews.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Total impressions</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="relative">
+              {comprehensiveAnalyticsLoading && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Email Opt-ins</CardTitle>
+                <MousePointer className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.total_email_optins.toLocaleString() : totalConversions.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Email captures</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="relative">
+              {comprehensiveAnalyticsLoading && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Optin Conversion Rate</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.optin_conversion_rate.toFixed(1) : avgConversionRate.toFixed(1)}%
+                </div>
+                <p className="text-xs text-muted-foreground">Views to emails</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="relative">
+              {comprehensiveAnalyticsLoading && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Abandonment Rate</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comprehensiveAnalytics ? comprehensiveAnalytics.core_metrics.abandonment_rate.toFixed(1) : '0.0'}%
+                </div>
+                <p className="text-xs text-muted-foreground">Views without conversion</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Content */}
         <Tabs defaultValue="campaigns" className="space-y-6">
           <TabsList>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="advanced">
+              <Activity className="w-4 h-4 mr-2" />
+              Advanced Analytics
+            </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           
@@ -230,9 +268,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500">Loading popups...</div>
-                  </div>
+                  <PopupTableSkeleton />
                 ) : popups.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-gray-500 mb-4">No popups created yet</div>
@@ -303,31 +339,11 @@ const Dashboard = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={async () => {
-                              const newStatus = !popup.is_active;
-                              try {
-                                const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    action: 'toggle_active',
-                                    id: popup.id,
-                                    is_active: newStatus
-                                  })
-                                });
-                                if (response.ok) {
-                                  fetchPopups();
-                                } else {
-                                  alert('Failed to update popup status');
-                                }
-                              } catch (error) {
-                                console.error('Error toggling popup:', error);
-                                alert('Error updating popup status');
-                              }
-                            }}
+                            onClick={() => handleTogglePopup(popup.id, popup.is_active)}
+                            disabled={togglePopupMutation.isPending}
                             className={popup.is_active ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
                           >
-                            {popup.is_active ? 'Deactivate' : 'Activate'}
+                            {togglePopupMutation.isPending ? 'Updating...' : (popup.is_active ? 'Deactivate' : 'Activate')}
                           </Button>
                           <Button 
                             variant="outline" 
@@ -340,27 +356,8 @@ const Dashboard = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={async () => {
-                              if (!confirm('Are you sure you want to permanently delete this popup?')) return;
-                              try {
-                                const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    action: 'delete',
-                                    id: popup.id
-                                  })
-                                });
-                                if (response.ok) {
-                                  fetchPopups();
-                                } else {
-                                  alert('Failed to delete popup');
-                                }
-                              } catch (error) {
-                                console.error('Error deleting popup:', error);
-                                alert('Error deleting popup');
-                              }
-                            }}
+                            onClick={() => handleDeletePopup(popup.id)}
+                            disabled={deletePopupMutation.isPending}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -383,7 +380,15 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             ) : comprehensiveAnalytics ? (
-              <div className="space-y-6">
+              <div className={`space-y-6 ${timeframeLoading ? 'relative' : ''}`}>
+                {timeframeLoading && (
+                  <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      <span className="text-gray-600">Updating analytics...</span>
+                    </div>
+                  </div>
+                )}
                 {/* Device Analytics */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
@@ -583,6 +588,14 @@ const Dashboard = () => {
               </Card>
             )}
           </TabsContent>
+
+          <TabsContent value="advanced" className="space-y-6">
+            <AdvancedAnalytics 
+              shop={shopDomain || 'demo-shop'} 
+              authToken={undefined} // Will be passed from App Bridge
+              isEmbedded={isEmbedded}
+            />
+          </TabsContent>
           
           <TabsContent value="settings" className="space-y-6">
             <Card>
@@ -631,8 +644,7 @@ const Dashboard = () => {
           setEditingPopup(null);
         }}
         onSuccess={() => {
-          fetchPopups();
-          fetchAnalytics();
+          // React Query will auto-refetch after mutations
         }}
         editingPopup={editingPopup}
       />

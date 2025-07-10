@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { validatePublicRequest, createSecurityErrorResponse } from '../_shared/security-validation.ts'
+import { checkCacheValidation, createNotModifiedResponse, createCachedResponse, CACHE_CONFIGS, generateETag } from '../_shared/caching.ts'
 
+// CORS headers for public script access
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -16,25 +19,47 @@ serve(async (req) => {
 
   try {
     if (req.method === 'GET') {
-      const url = new URL(req.url)
-      const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
-      const debug = url.searchParams.get('debug') === 'true'
+      // CRITICAL SECURITY: Validate request before serving any content
+      const validation = validatePublicRequest(req)
       
-      console.log(`[${timestamp}] Serving popup embed for shop: ${shop}`)
+      if (!validation.isValid) {
+        console.warn(`[${timestamp}] Security validation failed: ${validation.error}`);
+        return createSecurityErrorResponse(validation.error!, 403, corsHeaders);
+      }
+      
+      const url = new URL(req.url)
+      const shop = validation.shop! // Use validated shop from security check
+      const debug = url.searchParams.get('debug') === 'true'
+      const version = url.searchParams.get('version') || 'latest'
+      const variant = url.searchParams.get('variant') || 'default'
+      
+      console.log(`[${timestamp}] Serving popup embed for validated shop: ${shop}, version: ${version}, variant: ${variant} (Rate limit remaining: ${validation.rateLimitRemaining})`)
 
-      // Generate the JavaScript embed code with CORRECT admin detection
-      const embedScript = generateEmbedScript(shop, debug)
-
-      return new Response(embedScript, {
-        status: 200,
-        headers: {
+      // Generate the JavaScript embed code with versioning and A/B testing
+      const embedScript = generateEmbedScript(shop, debug, req, version, variant)
+      
+      // Generate ETag for caching
+      const etag = await generateETag(embedScript);
+      
+      // Check if client has cached version
+      if (checkCacheValidation(req, etag)) {
+        console.log(`[${timestamp}] Returning 304 Not Modified for shop: ${shop}`);
+        const cacheHeaders = {
           ...corsHeaders,
-          'Content-Type': 'application/javascript',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      })
+          'ETag': `"${etag}"`,
+          'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800'
+        };
+        return createNotModifiedResponse(cacheHeaders);
+      }
+      
+      // Return cached response with optimized headers
+      return createCachedResponse(
+        embedScript,
+        'application/javascript',
+        CACHE_CONFIGS.POPUP_EMBED,
+        corsHeaders,
+        etag
+      );
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -46,36 +71,165 @@ serve(async (req) => {
     console.error(`[${timestamp}] Function error:`, error)
     return new Response(`console.error('SmartPop Embed Error: ${error.message}');`, {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/javascript' }
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/javascript',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
     })
   }
 })
 
-function generateEmbedScript(shop: string, debug: boolean = false): string {
+function generateEmbedScript(shop: string, debug: boolean = false, request?: Request, version: string = 'latest', variant: string = 'default'): string {
   const apiBaseUrl = 'https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1'
   
+  // Add request metadata for debugging
+  const requestMetadata = {
+    userAgent: request?.headers.get('User-Agent') || 'unknown',
+    origin: request?.headers.get('Origin') || 'unknown',
+    referer: request?.headers.get('Referer') || 'unknown',
+    timestamp: new Date().toISOString()
+  };
+  
   return `
+// Enhanced Attribution Tracking - Inline Implementation
+(function initializeAttribution() {
+  window.SmartPopSessionManager = class {
+    constructor(shopDomain) {
+      this.shopDomain = shopDomain;
+      this.sessionId = 'ss_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2);
+      this.visitorId = this.getOrCreateVisitorId();
+      this.startTime = Date.now();
+      this.behavioralData = { timeOnSite: 0, scrollDepth: 0, mouseMovements: 0, clickCount: 0, engagement: 'low' };
+      this.setupTracking();
+    }
+    
+    getOrCreateVisitorId() {
+      try {
+        let visitorId = localStorage.getItem('smartpop_visitor');
+        if (!visitorId) {
+          visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+          localStorage.setItem('smartpop_visitor', visitorId);
+        }
+        return visitorId;
+      } catch (e) {
+        return 'visitor_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+      }
+    }
+    
+    setupTracking() {
+      setInterval(() => {
+        this.behavioralData.timeOnSite = Date.now() - this.startTime;
+        let score = 0;
+        if (this.behavioralData.timeOnSite > 30000) score++;
+        if (this.behavioralData.timeOnSite > 60000) score++;
+        if (this.behavioralData.scrollDepth > 25) score++;
+        if (this.behavioralData.scrollDepth > 50) score++;
+        if (this.behavioralData.mouseMovements > 50) score++;
+        if (this.behavioralData.clickCount > 2) score++;
+        this.behavioralData.engagement = score >= 4 ? 'high' : score >= 2 ? 'medium' : 'low';
+      }, 1000);
+      
+      let maxScroll = 0;
+      window.addEventListener('scroll', () => {
+        const scrollPercent = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+        maxScroll = Math.max(maxScroll, scrollPercent || 0);
+        this.behavioralData.scrollDepth = maxScroll;
+      }, { passive: true });
+      
+      let mouseCount = 0;
+      document.addEventListener('mousemove', () => {
+        mouseCount++;
+        if (mouseCount % 10 === 0) this.behavioralData.mouseMovements = mouseCount;
+      }, { passive: true });
+      
+      document.addEventListener('click', () => { this.behavioralData.clickCount++; }, { passive: true });
+    }
+    
+    async trackAttributionEvent(eventType, data = {}) {
+      const event = {
+        id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2),
+        sessionId: this.sessionId,
+        visitorId: this.visitorId,
+        shopDomain: this.shopDomain,
+        eventType,
+        timestamp: Date.now(),
+        attributionWindow: 7 * 24 * 60 * 60 * 1000,
+        crossDevice: false,
+        metadata: {
+          ...data,
+          deviceType: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+          timeOnSite: this.behavioralData.timeOnSite,
+          scrollDepth: this.behavioralData.scrollDepth,
+          engagement: this.behavioralData.engagement,
+          version: '${version}',
+          variant: '${variant}'
+        }
+      };
+      
+      try {
+        await fetch('${apiBaseUrl}/attribution-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(event)
+        });
+      } catch (error) {
+        try {
+          const failed = JSON.parse(localStorage.getItem('smartpop_failed_events') || '[]');
+          failed.push(event);
+          localStorage.setItem('smartpop_failed_events', JSON.stringify(failed.slice(-20)));
+        } catch (e) {}
+      }
+    }
+  };
+  
+  window.smartPopSession = new window.SmartPopSessionManager('${shop}');
+})();
+
+`
 /**
- * SmartPop Revenue Engine - Public Embed Script  
+ * SmartPop Revenue Engine - Enhanced Embed Script  
  * Shop: ${shop}
  * Generated: ${new Date().toISOString()}
- * Version: 2.1 - FIXED: Multiple popups + validation consistency
+ * Version: 3.0 - ENHANCED: Multi-layered injection with fallbacks
+ * Features: Script load monitoring, fallback mechanisms, error recovery
  */
 
 (function() {
   'use strict';
   
-  // Prevent multiple initializations + cleanup old versions
+  // Enhanced initialization with monitoring
   if (window.smartPopInitialized) {
-    console.log('🎯 SmartPop already initialized - cleaning up old version');
+    console.log('🎯 SmartPop already initialized - method:', window.smartPopMethod || 'script_tags');
     // Clean up any existing popups from old versions
     const existingPopups = document.querySelectorAll('[id^="smartpop-"]');
     existingPopups.forEach(p => p.remove());
     return;
   }
   window.smartPopInitialized = true;
-  window.smartPopVersion = '2.1';
-  console.log('🚀 SmartPop initialized v2.1');
+  window.smartPopVersion = '3.0';
+  window.smartPopMethod = 'script_tags';
+  window.smartPopLoadTime = Date.now();
+  console.log('🚀 SmartPop initialized v3.0 via script tags');
+  
+  // Report successful script load
+  try {
+    fetch('${apiBaseUrl}/popup-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventType: 'script_load_success',
+        method: 'script_tags',
+        shop: '${shop}',
+        pageUrl: window.location.href,
+        loadTime: Date.now(),
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(e => console.log('Load tracking failed:', e));
+  } catch (e) {
+    // Silently fail tracking
+  }
 
   // CRITICAL ADMIN DETECTION - This is the key fix
   function shouldSkipPopup() {
@@ -640,6 +794,126 @@ function generateEmbedScript(shop: string, debug: boolean = false): string {
   
   console.log('🎯 SmartPop Public Embed loaded for shop: ${shop}');
   
+  // Set up heartbeat monitoring for script health
+  setInterval(() => {
+    try {
+      if (window.smartPopInitialized && window.smartPopVersion) {
+        // Send heartbeat
+        fetch('${apiBaseUrl}/popup-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'script_heartbeat',
+            method: window.smartPopMethod || 'script_tags',
+            shop: '${shop}',
+            version: window.smartPopVersion,
+            uptime: Date.now() - (window.smartPopLoadTime || Date.now()),
+            timestamp: new Date().toISOString()
+          })
+        }).catch(() => {}); // Silent fail
+      }
+    } catch (e) {
+      // Silent fail
+    }
+  }, 30000); // Every 30 seconds
+  
+  // Check for theme app extension blocks as backup
+  setTimeout(() => {
+    const themeBlocks = document.querySelectorAll('[data-smartpop-app-block]');
+    if (themeBlocks.length > 0) {
+      console.log('🔍 Found', themeBlocks.length, 'theme app extension blocks (available as fallback)');
+    }
+  }, 2000);
+  
+})();
+
+// Enhanced Script Load Monitoring (Embedded)
+(function() {
+  'use strict';
+  
+  // Monitor for script loading failures
+  const originalError = window.onerror;
+  window.onerror = function(message, source, lineno, colno, error) {
+    if (source && source.includes('popup-embed-public')) {
+      console.error('🚨 SmartPop script error detected:', { message, source, lineno, colno, error });
+      
+      // Report script error
+      try {
+        fetch('${apiBaseUrl}/popup-track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'script_error',
+            error: {
+              message: message,
+              source: source,
+              lineno: lineno,
+              colno: colno,
+              stack: error?.stack
+            },
+            shop: '${shop}',
+            pageUrl: window.location.href,
+            timestamp: new Date().toISOString()
+          })
+        }).catch(() => {});
+      } catch (e) {
+        // Silent fail
+      }
+    }
+    
+    // Call original error handler
+    if (originalError) {
+      return originalError.apply(this, arguments);
+    }
+    return false;
+  };
+  
+  // Set up fallback check
+  setTimeout(() => {
+    if (!window.smartPopInitialized) {
+      console.warn('⚠️ SmartPop script failed to initialize, checking for fallbacks...');
+      
+      // Check for theme app extension blocks
+      const themeBlocks = document.querySelectorAll('[data-smartpop-app-block]');
+      if (themeBlocks.length > 0) {
+        console.log('🔄 Activating theme app extension fallback...');
+        themeBlocks.forEach(block => {
+          const configScript = block.querySelector('.smartpop-fallback-config');
+          if (configScript) {
+            try {
+              const config = JSON.parse(configScript.textContent);
+              if (config.enabled) {
+                console.log('🎯 Initializing fallback popup from theme block:', config.title);
+                // Theme block will handle initialization
+              }
+            } catch (e) {
+              console.error('❌ Invalid theme block config:', e);
+            }
+          }
+        });
+      } else {
+        console.log('❌ No fallback mechanisms available');
+        
+        // Report script load failure
+        try {
+          fetch('${apiBaseUrl}/popup-track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventType: 'script_load_failure',
+              reason: 'Script failed to initialize',
+              shop: '${shop}',
+              pageUrl: window.location.href,
+              userAgent: navigator.userAgent,
+              timestamp: new Date().toISOString()
+            })
+          }).catch(() => {});
+        } catch (e) {
+          // Silent fail
+        }
+      }
+    }
+  }, 15000); // Check after 15 seconds
 })();
 `;
 }

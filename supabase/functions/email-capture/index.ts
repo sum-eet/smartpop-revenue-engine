@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { validatePublicRequest, createSecurityErrorResponse } from '../_shared/security-validation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,18 +17,30 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const supabase = createClient(supabaseUrl!, supabaseKey!)
-
     if (req.method === 'POST') {
+      // CRITICAL SECURITY: Validate request before processing
+      const validation = validatePublicRequest(req)
+      
+      if (!validation.isValid) {
+        console.warn(`[${timestamp}] Email capture blocked: ${validation.error}`);
+        return createSecurityErrorResponse(validation.error!, 403, corsHeaders);
+      }
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      const supabase = createClient(supabaseUrl!, supabaseKey!)
+      
       const { email, shopDomain, popupId, discountCode, pageUrl, metadata } = await req.json()
+      
+      // Use validated shop from security check
+      const validatedShop = validation.shop!
       
       console.log(`[${timestamp}] Email capture request:`, { 
         email: email ? '***@' + email.split('@')[1] : 'none',
-        shopDomain,
+        shopDomain: validatedShop,
         popupId,
-        hasDiscountCode: !!discountCode
+        hasDiscountCode: !!discountCode,
+        rateLimitRemaining: validation.rateLimitRemaining
       })
       
       // Server-side email validation
@@ -42,15 +55,15 @@ serve(async (req) => {
         })
       }
 
-      // Get shop ID from shop domain
+      // Get shop ID from validated shop domain
       const { data: shop, error: shopError } = await supabase
         .from('shops')
         .select('id')
-        .eq('shop_domain', shopDomain)
+        .eq('shop_domain', validatedShop)
         .single()
 
       if (shopError || !shop) {
-        console.error(`[${timestamp}] Shop not found:`, shopDomain, shopError)
+        console.error(`[${timestamp}] Shop not found:`, validatedShop, shopError)
         return new Response(JSON.stringify({ 
           success: false, 
           error: 'Shop not found' 
@@ -101,7 +114,7 @@ serve(async (req) => {
             popup_id: popupId,
             event_type: 'email_capture',
             email: email.toLowerCase().trim(),
-            shop_domain: shopDomain,
+            shop_domain: validatedShop,
             page_url: pageUrl,
             timestamp: new Date().toISOString(),
             user_agent: req.headers.get('User-Agent'),

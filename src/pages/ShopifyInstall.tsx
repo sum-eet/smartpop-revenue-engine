@@ -18,9 +18,9 @@ const ShopifyInstall = () => {
     const cleanDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\.myshopify\.com.*$/, '');
     const fullDomain = cleanDomain.includes('.') ? cleanDomain : `${cleanDomain}.myshopify.com`;
     
-    // Open OAuth in new window to avoid iframe restrictions
+    // Redirect to Shopify OAuth flow directly
     const authUrl = `https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/shopify-auth?shop=${fullDomain}`;
-    window.open(authUrl, '_blank', 'width=600,height=700,scrollbars=yes,resizable=yes');
+    window.location.href = authUrl;
   };
 
   return (

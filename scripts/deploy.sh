@@ -15,7 +15,7 @@ NC='\033[0m'
 
 # Configuration
 SUPABASE_PROJECT_ID="zsmoutzjhqjgjehaituw"
-REQUIRED_FUNCTIONS=("popup-analytics" "popup-config" "popup-embed-public" "popup-script" "popup-track" "shopify-auth")
+REQUIRED_FUNCTIONS=("popup-analytics" "popup-config" "popup-embed-public" "popup-script" "popup-track" "shopify-auth" "shopify-webhook" "email-capture" "install-script-public" "health-check" "attribution-track")
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -75,8 +75,8 @@ log_info "Deploying Supabase functions..."
 for func in "${REQUIRED_FUNCTIONS[@]}"; do
     log_info "Deploying $func..."
     
-    if [ "$func" = "popup-embed-public" ]; then
-        # Deploy with no JWT verification for public access
+    if [ "$func" = "popup-embed-public" ] || [ "$func" = "shopify-webhook" ] || [ "$func" = "email-capture" ] || [ "$func" = "install-script-public" ] || [ "$func" = "health-check" ] || [ "$func" = "attribution-track" ]; then
+        # Deploy with no JWT verification for public access (but with security validation)
         npx supabase functions deploy "$func" --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
     else
         npx supabase functions deploy "$func" --project-ref "$SUPABASE_PROJECT_ID"

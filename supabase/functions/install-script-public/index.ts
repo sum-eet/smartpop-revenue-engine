@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { validateShopDomain, checkRateLimit, getClientIP } from '../_shared/security-validation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,16 +7,49 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  const timestamp = new Date().toISOString();
+  const clientIP = getClientIP(req);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // SECURITY: Rate limiting for installation requests
+    const rateLimit = checkRateLimit(clientIP, 10, 60000); // 10 requests per minute per IP
+    if (!rateLimit.allowed) {
+      console.warn(`[${timestamp}] Rate limit exceeded for installation from IP: ${clientIP}`);
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        message: 'Too many installation requests. Please wait a minute before trying again.',
+        remaining: rateLimit.remaining
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const url = new URL(req.url)
-    const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
+    const shopParam = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
     const accessToken = url.searchParams.get('token')
     
-    console.log('Public script installation request:', { shop, hasToken: !!accessToken })
+    // SECURITY: Validate shop domain
+    const shopValidation = validateShopDomain(shopParam);
+    if (!shopValidation.isValid) {
+      console.warn(`[${timestamp}] Invalid shop domain: ${shopParam} from IP: ${clientIP}`);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid shop domain',
+        message: shopValidation.error,
+        provided: shopParam
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const shop = shopValidation.normalizedShop!;
+    
+    console.log(`[${timestamp}] Script installation request:`, { shop, hasToken: !!accessToken, clientIP, rateLimitRemaining: rateLimit.remaining })
     
     if (!accessToken) {
       // Return instructions for getting access token

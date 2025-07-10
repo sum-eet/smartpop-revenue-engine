@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { authenticateRequest } from '../_shared/session-auth.ts'
+import { checkRateLimit, getClientIP } from '../_shared/security-validation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +10,9 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  const timestamp = new Date().toISOString();
+  const clientIP = getClientIP(req);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -17,15 +22,55 @@ serve(async (req) => {
   }
 
   try {
+    // CRITICAL SECURITY: Rate limiting for analytics access
+    const rateLimit = checkRateLimit(clientIP, 60, 60000); // 60 requests per minute per IP
+    if (!rateLimit.allowed) {
+      console.warn(`[${timestamp}] Analytics rate limit exceeded for IP: ${clientIP}`);
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        message: 'Too many analytics requests. Please wait before trying again.',
+        remaining: rateLimit.remaining
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // CRITICAL SECURITY: Authentication required for analytics access
+    const auth = await authenticateRequest(req);
+    if (!auth.isAuthenticated) {
+      console.warn(`[${timestamp}] Unauthorized analytics access attempt from IP: ${clientIP}`);
+      return new Response(JSON.stringify({ 
+        error: 'Authentication required',
+        message: 'Valid session token required to access analytics data'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const supabase = createClient(supabaseUrl!, supabaseKey!)
 
     const url = new URL(req.url)
-    const shop = url.searchParams.get('shop') || 'testingstoresumeet.myshopify.com'
+    // SECURITY: Use authenticated shop domain only
+    const shop = auth.shop;
     const timeframe = url.searchParams.get('timeframe') || '7d' // 1d, 7d, 30d, all
+    
+    // Validate timeframe parameter
+    const validTimeframes = ['1d', '7d', '30d', 'all'];
+    if (!validTimeframes.includes(timeframe)) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid timeframe',
+        message: 'Timeframe must be one of: 1d, 7d, 30d, all'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    console.log(`📊 Analytics request for shop: ${shop}, timeframe: ${timeframe}`)
+    console.log(`[${timestamp}] 📊 Authenticated analytics request for shop: ${shop}, timeframe: ${timeframe}, IP: ${clientIP}`)
 
     // Calculate date filter based on timeframe
     let dateFilter = ''

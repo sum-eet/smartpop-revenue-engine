@@ -1,0 +1,337 @@
+{% comment %}
+  SmartPop Theme App Extension - Popup Embed Block
+  Provides fallback popup functionality when script tags fail
+{% endcomment %}
+
+<div 
+  data-smartpop-app-block="true" 
+  data-smartpop-config="{{ block.settings | json | escape }}"
+  data-smartpop-shop="{{ shop.permanent_domain }}"
+  class="smartpop-app-block"
+  style="display: none;"
+  {{ block.shopify_attributes }}
+>
+  {% if block.settings.popup_enabled %}
+    <script type="application/json" class="smartpop-fallback-config">
+      {
+        "id": "{{ block.id }}",
+        "shop": "{{ shop.permanent_domain }}",
+        "title": {{ block.settings.popup_title | default: 'Special Offer!' | json }},
+        "description": {{ block.settings.popup_description | default: 'Get a special discount!' | json }},
+        "position": {{ block.settings.popup_position | default: 'center' | json }},
+        "timing": {{ block.settings.popup_timing | default: 5 | json }},
+        "enabled": {{ block.settings.popup_enabled | default: true | json }},
+        "debug": {{ block.settings.debug_mode | default: false | json }}
+      }
+    </script>
+    
+    <!-- Fallback CSS for when script injection fails -->
+    <style>
+      .smartpop-fallback-popup {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+      
+      .smartpop-fallback-popup.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      
+      .smartpop-fallback-content {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        max-width: 450px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        position: relative;
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
+      }
+      
+      .smartpop-fallback-popup.show .smartpop-fallback-content {
+        transform: scale(1);
+      }
+      
+      .smartpop-fallback-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        line-height: 1;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .smartpop-fallback-close:hover {
+        color: #333;
+      }
+      
+      .smartpop-fallback-title {
+        margin: 0 0 16px 0;
+        color: #333;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      
+      .smartpop-fallback-description {
+        margin: 0 0 24px 0;
+        color: #666;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      
+      .smartpop-fallback-button {
+        background: #007cba;
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+      }
+      
+      .smartpop-fallback-button:hover {
+        background: #005a8a;
+      }
+      
+      /* Position variants */
+      .smartpop-fallback-popup.position-bottom-right {
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 20px;
+      }
+      
+      .smartpop-fallback-popup.position-bottom-right .smartpop-fallback-content {
+        max-width: 350px;
+      }
+      
+      .smartpop-fallback-popup.position-top-center {
+        align-items: flex-start;
+        padding-top: 20px;
+      }
+    </style>
+    
+    <!-- Fallback JavaScript for theme app extension -->
+    <script>
+      (function() {
+        'use strict';
+        
+        // Check if SmartPop is already initialized
+        if (window.smartPopInitialized) {
+          console.log('SmartPop already initialized via script tag');
+          return;
+        }
+        
+        // Configuration from block settings
+        const config = {
+          id: "{{ block.id }}",
+          shop: "{{ shop.permanent_domain }}",
+          title: {{ block.settings.popup_title | default: 'Special Offer!' | json }},
+          description: {{ block.settings.popup_description | default: 'Get a special discount!' | json }},
+          position: {{ block.settings.popup_position | default: 'center' | json }},
+          timing: {{ block.settings.popup_timing | default: 5 | json }},
+          enabled: {{ block.settings.popup_enabled | default: true | json }},
+          debug: {{ block.settings.debug_mode | default: false | json }}
+        };
+        
+        if (!config.enabled) {
+          return;
+        }
+        
+        // Debug logging
+        function log(...args) {
+          if (config.debug) {
+            console.log('[SmartPop Theme Extension]', ...args);
+          }
+        }
+        
+        log('Initializing theme app extension fallback');
+        
+        // Check if we're in admin or checkout
+        if (window.location.hostname.includes('admin.shopify.com') || 
+            window.location.pathname.includes('/checkout')) {
+          log('Blocked: Admin or checkout page');
+          return;
+        }
+        
+        // Wait for primary script to load
+        setTimeout(() => {
+          if (window.smartPopInitialized) {
+            log('Primary script loaded, theme extension not needed');
+            return;
+          }
+          
+          log('Primary script not detected, activating theme extension');
+          initializeThemeExtension();
+        }, 10000); // Wait 10 seconds for primary script
+        
+        function initializeThemeExtension() {
+          // Create popup HTML
+          const popup = document.createElement('div');
+          popup.className = `smartpop-fallback-popup position-${config.position}`;
+          popup.innerHTML = `
+            <div class="smartpop-fallback-content">
+              <button class="smartpop-fallback-close" onclick="this.closest('.smartpop-fallback-popup').remove()">×</button>
+              <h2 class="smartpop-fallback-title">${config.title}</h2>
+              <p class="smartpop-fallback-description">${config.description}</p>
+              <button class="smartpop-fallback-button" onclick="handleFallbackAction()">
+                Learn More
+              </button>
+            </div>
+          `;
+          
+          // Add to page
+          document.body.appendChild(popup);
+          
+          // Show popup after delay
+          setTimeout(() => {
+            popup.classList.add('show');
+            log('Theme extension popup shown');
+            
+            // Track view
+            trackEvent('theme_extension_view');
+          }, config.timing * 1000);
+          
+          // Set up global action handler
+          window.handleFallbackAction = function() {
+            log('Fallback action triggered');
+            popup.remove();
+            trackEvent('theme_extension_action');
+          };
+          
+          // Mark as initialized
+          window.smartPopInitialized = true;
+          window.smartPopMethod = 'theme_extension';
+        }
+        
+        function trackEvent(eventType) {
+          try {
+            fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventType,
+                shop: config.shop,
+                pageUrl: window.location.href,
+                method: 'theme_extension',
+                blockId: config.id,
+                timestamp: new Date().toISOString()
+              })
+            }).catch(error => {
+              log('Tracking error:', error);
+            });
+          } catch (error) {
+            log('Tracking error:', error);
+          }
+        }
+        
+        log('Theme extension initialized');
+      })();
+    </script>
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "SmartPop Popup",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "popup_enabled",
+      "label": "Enable popup",
+      "default": true,
+      "info": "Enable or disable popup display"
+    },
+    {
+      "type": "text",
+      "id": "popup_title",
+      "label": "Popup title",
+      "default": "Special Offer!",
+      "info": "Title displayed in the popup"
+    },
+    {
+      "type": "textarea",
+      "id": "popup_description",
+      "label": "Popup description",
+      "default": "Get a special discount on your purchase!",
+      "info": "Description text displayed in the popup"
+    },
+    {
+      "type": "select",
+      "id": "popup_position",
+      "label": "Popup position",
+      "options": [
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "top-center",
+          "label": "Top Center"
+        }
+      ],
+      "default": "center",
+      "info": "Position where the popup appears"
+    },
+    {
+      "type": "range",
+      "id": "popup_timing",
+      "label": "Popup delay (seconds)",
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "default": 5,
+      "info": "How long to wait before showing the popup"
+    },
+    {
+      "type": "checkbox",
+      "id": "debug_mode",
+      "label": "Debug mode",
+      "default": false,
+      "info": "Enable debug logging in browser console"
+    }
+  ],
+  "presets": [
+    {
+      "name": "SmartPop Popup",
+      "settings": {
+        "popup_enabled": true,
+        "popup_title": "Special Offer!",
+        "popup_description": "Get a special discount on your purchase!",
+        "popup_position": "center",
+        "popup_timing": 5,
+        "debug_mode": false
+      }
+    }
+  ]
+}
+{% endschema %}

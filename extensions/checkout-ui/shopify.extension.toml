@@ -1,0 +1,54 @@
+api_version = "2023-10"
+type = "ui_extension"
+name = "SmartPop Checkout Extension"
+handle = "smartpop-checkout"
+
+[[extensions]]
+  type = "checkout_ui_extension"
+  name = "SmartPop Checkout Popup"
+  handle = "smartpop-checkout-popup"
+  
+  [[extensions.targeting]]
+    target = "purchase.checkout.footer.render"
+    
+  [[extensions.targeting]]
+    target = "purchase.checkout.header.render"
+    
+  [[extensions.targeting]]
+    target = "purchase.thank-you.footer.render"
+
+[settings]
+  [settings.checkout_popup_enabled]
+    type = "boolean"
+    label = "Enable Checkout Popups"
+    default = true
+    
+  [settings.checkout_popup_position]
+    type = "select"
+    label = "Checkout Popup Position"
+    options = [
+      { value = "header", label = "Header" },
+      { value = "footer", label = "Footer" },
+      { value = "thank-you", label = "Thank You Page" }
+    ]
+    default = "footer"
+    
+  [settings.checkout_popup_title]
+    type = "text"
+    label = "Checkout Popup Title"
+    default = "Complete Your Purchase!"
+    
+  [settings.checkout_popup_description]
+    type = "textarea"
+    label = "Checkout Popup Description"
+    default = "Don't miss out on exclusive offers!"
+    
+  [settings.email_capture_enabled]
+    type = "boolean"
+    label = "Enable Email Capture"
+    default = true
+    
+  [settings.discount_offer]
+    type = "text"
+    label = "Discount Code"
+    default = "CHECKOUT10"
