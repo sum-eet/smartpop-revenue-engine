@@ -114,7 +114,7 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -126,7 +126,7 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="Attribution Analytics Error">
+          <Banner tone="critical" title="Attribution Analytics Error">
             <p>{error}</p>
             <Button onClick={loadAttributionData}>Retry</Button>
           </Banner>
@@ -134,7 +134,7 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">Attribution Analysis</Text>
             <Button onClick={loadAttributionData} loading={loading}>
@@ -146,8 +146,8 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
           {attributionData?.journeyInsights && (
             <div style={{ marginBottom: '20px' }}>
               <Layout>
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatNumber(attributionData.journeyInsights.totalJourneys)}
@@ -157,8 +157,8 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatPercentage(attributionData.journeyInsights.conversionRate)}
@@ -168,8 +168,8 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {attributionData.journeyInsights.avgSessionsPerJourney.toFixed(1)}
@@ -196,7 +196,7 @@ export function AttributionAnalytics({ shop, authToken, timeframe }: Attribution
 function AttributionPaths({ attributionPaths }: { attributionPaths: Array<{ path: string; count: number }> }) {
   if (!attributionPaths || attributionPaths.length === 0) {
     return (
-      <Card sectioned>
+      <Card >
         <Text as="p" tone="subdued">No attribution paths available.</Text>
       </Card>
     );
@@ -205,7 +205,7 @@ function AttributionPaths({ attributionPaths }: { attributionPaths: Array<{ path
   const maxCount = Math.max(...attributionPaths.map(p => p.count));
 
   return (
-    <Card sectioned>
+    <Card >
       <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
         Most Common Attribution Paths
       </Text>
@@ -263,7 +263,7 @@ function CustomerJourneys({
 }) {
   if (!journeys || journeys.length === 0) {
     return (
-      <Card sectioned>
+      <Card >
         <Text as="p" tone="subdued">No customer journeys available.</Text>
       </Card>
     );
@@ -273,12 +273,12 @@ function CustomerJourneys({
     <Layout>
       {insights && (
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
               Journey Insights
             </Text>
             <Layout>
-              <Layout.Section oneHalf>
+              <Layout.Section variant="oneHalf">
                 <div style={{ padding: '8px 0' }}>
                   <Text as="p">
                     <strong>Average Events per Journey:</strong> {insights.avgEventsPerJourney.toFixed(1)}
@@ -289,7 +289,7 @@ function CustomerJourneys({
                   </Text>
                 </div>
               </Layout.Section>
-              <Layout.Section oneHalf>
+              <Layout.Section variant="oneHalf">
                 <div style={{ padding: '8px 0' }}>
                   <Text as="p">
                     <strong>Multi-session Journeys:</strong> {journeys.filter(j => j.total_sessions > 1).length}
@@ -305,7 +305,7 @@ function CustomerJourneys({
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
             Recent Customer Journeys
           </Text>
@@ -378,7 +378,7 @@ function CustomerJourneys({
 function AttributionEvents({ events }: { events: any[] }) {
   if (!events || events.length === 0) {
     return (
-      <Card sectioned>
+      <Card >
         <Text as="p" tone="subdued">No attribution events available.</Text>
       </Card>
     );
@@ -400,7 +400,7 @@ function AttributionEvents({ events }: { events: any[] }) {
   };
 
   return (
-    <Card sectioned>
+    <Card >
       <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
         Recent Attribution Events
       </Text>

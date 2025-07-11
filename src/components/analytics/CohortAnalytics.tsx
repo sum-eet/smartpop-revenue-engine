@@ -139,7 +139,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -151,7 +151,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="Cohort Analytics Error">
+          <Banner tone="critical" title="Cohort Analytics Error">
             <p>{error}</p>
             <Button onClick={loadCohortData}>Retry</Button>
           </Banner>
@@ -159,7 +159,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">Cohort Analysis</Text>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -189,7 +189,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
               {/* Cohort Summary */}
               <Layout>
                 <Layout.Section oneThird>
-                  <Card sectioned>
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {cohortData.summary.totalCohorts}
@@ -203,7 +203,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                 </Layout.Section>
 
                 <Layout.Section oneThird>
-                  <Card sectioned>
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatPercentage(cohortData.summary.avgConversionRate)}
@@ -217,7 +217,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                 </Layout.Section>
 
                 <Layout.Section oneThird>
-                  <Card sectioned>
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatNumber(cohortData.summary.totalVisitors)}
@@ -236,8 +236,8 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                 <div style={{ marginTop: '20px' }}>
                   <Layout>
                     {cohortData.summary.bestPerformingCohort && (
-                      <Layout.Section oneHalf>
-                        <Card sectioned>
+                      <Layout.Section variant="oneHalf">
+                        <Card >
                           <div style={{ textAlign: 'center' }}>
                             <Badge tone="success">Best Performer</Badge>
                             <Text variant="headingMd" as="h4" style={{ marginTop: '8px' }}>
@@ -252,8 +252,8 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                     )}
                     
                     {cohortData.summary.worstPerformingCohort && (
-                      <Layout.Section oneHalf>
-                        <Card sectioned>
+                      <Layout.Section variant="oneHalf">
+                        <Card >
                           <div style={{ textAlign: 'center' }}>
                             <Badge tone="warning">Needs Attention</Badge>
                             <Text variant="headingMd" as="h4" style={{ marginTop: '8px' }}>
@@ -273,7 +273,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
               {/* Detailed Cohort Analysis */}
               {cohortData.cohortAnalysis && cohortData.cohortAnalysis.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
                       Cohort Performance Details
                     </Text>
@@ -378,7 +378,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
 
               {/* Cohort Comparison Chart */}
               <div style={{ marginTop: '20px' }}>
-                <Card sectioned>
+                <Card >
                   <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
                     Cohort Comparison Chart
                   </Text>

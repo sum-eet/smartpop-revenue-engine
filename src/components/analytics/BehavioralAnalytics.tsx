@@ -130,7 +130,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -142,7 +142,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="Behavioral Analytics Error">
+          <Banner tone="critical" title="Behavioral Analytics Error">
             <p>{error}</p>
             <Button onClick={loadBehavioralData}>Retry</Button>
           </Banner>
@@ -150,7 +150,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">Behavioral Analytics</Text>
             <Button onClick={loadBehavioralData} loading={loading}>
@@ -166,8 +166,8 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
             <>
               {/* Behavioral Insights Summary */}
               <Layout>
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatNumber(behavioralData.insights.totalSessions)}
@@ -177,8 +177,8 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatDuration(behavioralData.insights.avgTimeOnSite)}
@@ -188,8 +188,8 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatPercentage(behavioralData.insights.avgScrollDepth)}
@@ -203,8 +203,8 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {/* Additional Metrics */}
               <div style={{ marginTop: '20px' }}>
                 <Layout>
-                  <Layout.Section oneHalf>
-                    <Card sectioned>
+                  <Layout.Section variant="oneHalf">
+                    <Card >
                       <div style={{ textAlign: 'center' }}>
                         <Text variant="headingLg" as="h4">
                           {formatPercentage(behavioralData.insights.highEngagementRate)}
@@ -217,8 +217,8 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                     </Card>
                   </Layout.Section>
 
-                  <Layout.Section oneHalf>
-                    <Card sectioned>
+                  <Layout.Section variant="oneHalf">
+                    <Card >
                       <div style={{ textAlign: 'center' }}>
                         <Text variant="headingLg" as="h4">
                           {formatPercentage(behavioralData.insights.exitIntentRate)}
@@ -236,12 +236,12 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {/* Engagement Distribution */}
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
                       Engagement Distribution
                     </Text>
                     <Layout>
-                      <Layout.Section oneThird>
+                      <Layout.Section variant="oneThird">
                         <div style={{ textAlign: 'center', padding: '16px' }}>
                           <Text variant="headingLg" as="h4" tone="success">
                             {behavioralData.behavioralData.filter(s => s.engagement_level === 'high').length}
@@ -256,7 +256,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                         </div>
                       </Layout.Section>
 
-                      <Layout.Section oneThird>
+                      <Layout.Section variant="oneThird">
                         <div style={{ textAlign: 'center', padding: '16px' }}>
                           <Text variant="headingLg" as="h4">
                             {behavioralData.behavioralData.filter(s => s.engagement_level === 'medium').length}
@@ -271,7 +271,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                         </div>
                       </Layout.Section>
 
-                      <Layout.Section oneThird>
+                      <Layout.Section variant="oneThird">
                         <div style={{ textAlign: 'center', padding: '16px' }}>
                           <Text variant="headingLg" as="h4" tone="warning">
                             {behavioralData.behavioralData.filter(s => s.engagement_level === 'low').length}
@@ -293,7 +293,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {/* Device Type Analysis */}
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
                       Device Type Performance
                     </Text>
@@ -356,7 +356,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {/* Detailed Session Data */}
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
                       Recent Sessions
                     </Text>

@@ -105,7 +105,7 @@ export function AdvancedAnalytics({ shop, authToken, isEmbedded = false }: Advan
     >
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="Analytics Error">
+          <Banner tone="critical" title="Analytics Error">
             <p>{error}</p>
             <Button onClick={loadDashboardData}>Retry</Button>
           </Banner>
@@ -114,13 +114,14 @@ export function AdvancedAnalytics({ shop, authToken, isEmbedded = false }: Advan
 
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <Text variant="headingMd" as="h2">Analytics Dashboard</Text>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <Text as="span">Time period:</Text>
                 <div style={{ minWidth: '150px' }}>
                   <Select
+                    label="Time period"
                     options={timeframeOptions}
                     value={timeframe}
                     onChange={setTimeframe}
@@ -154,13 +155,13 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
   if (loading) {
     return (
       <Layout>
-        <Layout.Section oneHalf>
-          <Card sectioned>
+        <Layout.Section variant="oneHalf">
+          <Card>
             <SkeletonBodyText lines={3} />
           </Card>
         </Layout.Section>
-        <Layout.Section oneHalf>
-          <Card sectioned>
+        <Layout.Section variant="oneHalf">
+          <Card>
             <SkeletonBodyText lines={3} />
           </Card>
         </Layout.Section>
@@ -170,7 +171,7 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
 
   if (!data) {
     return (
-      <Card sectioned>
+      <Card>
         <Text as="p">No analytics data available for the selected timeframe.</Text>
       </Card>
     );
@@ -195,8 +196,8 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
       {/* Summary Metrics */}
       <Layout.Section>
         <Layout>
-          <Layout.Section oneThird>
-            <Card sectioned>
+          <Layout.Section variant="oneThird">
+            <Card>
               <Text variant="headingMd" as="h3">Total Revenue</Text>
               <Text variant="headingLg" as="p" tone="success">
                 {formatCurrency(summary.totalRevenue || 0)}
@@ -207,8 +208,8 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
             </Card>
           </Layout.Section>
           
-          <Layout.Section oneThird>
-            <Card sectioned>
+          <Layout.Section variant="oneThird">
+            <Card>
               <Text variant="headingMd" as="h3">Conversions</Text>
               <Text variant="headingLg" as="p">
                 {formatNumber(summary.totalConversions || 0)}
@@ -219,8 +220,8 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
             </Card>
           </Layout.Section>
           
-          <Layout.Section oneThird>
-            <Card sectioned>
+          <Layout.Section variant="oneThird">
+            <Card>
               <Text variant="headingMd" as="h3">Unique Visitors</Text>
               <Text variant="headingLg" as="p">
                 {formatNumber(summary.totalVisitors || 0)}
@@ -236,34 +237,26 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
       {/* Real-time Metrics */}
       {realTimeMetrics && (
         <Layout.Section>
-          <Card sectioned>
+          <Card>
             <Text variant="headingMd" as="h3">Real-time Activity (Last Hour)</Text>
-            <Layout>
-              <Layout.Section oneQuarter>
-                <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <Text variant="headingLg" as="p">{realTimeMetrics.active_visitors_last_hour || 0}</Text>
-                  <Text as="p" tone="subdued">Active Visitors</Text>
-                </div>
-              </Layout.Section>
-              <Layout.Section oneQuarter>
-                <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <Text variant="headingLg" as="p">{realTimeMetrics.popup_views_last_hour || 0}</Text>
-                  <Text as="p" tone="subdued">Popup Views</Text>
-                </div>
-              </Layout.Section>
-              <Layout.Section oneQuarter>
-                <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <Text variant="headingLg" as="p">{realTimeMetrics.conversions_last_hour || 0}</Text>
-                  <Text as="p" tone="subdued">Conversions</Text>
-                </div>
-              </Layout.Section>
-              <Layout.Section oneQuarter>
-                <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <Text variant="headingLg" as="p">{formatCurrency(realTimeMetrics.revenue_last_hour || 0)}</Text>
-                  <Text as="p" tone="subdued">Revenue</Text>
-                </div>
-              </Layout.Section>
-            </Layout>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '16px' }}>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <Text variant="headingLg" as="p">{realTimeMetrics.active_visitors_last_hour || 0}</Text>
+                <Text as="p" tone="subdued">Active Visitors</Text>
+              </div>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <Text variant="headingLg" as="p">{realTimeMetrics.popup_views_last_hour || 0}</Text>
+                <Text as="p" tone="subdued">Popup Views</Text>
+              </div>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <Text variant="headingLg" as="p">{realTimeMetrics.conversions_last_hour || 0}</Text>
+                <Text as="p" tone="subdued">Conversions</Text>
+              </div>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <Text variant="headingLg" as="p">{formatCurrency(realTimeMetrics.revenue_last_hour || 0)}</Text>
+                <Text as="p" tone="subdued">Revenue</Text>
+              </div>
+            </div>
           </Card>
         </Layout.Section>
       )}
@@ -271,7 +264,7 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
       {/* Top Performing Popups */}
       {topPerformingPopups && topPerformingPopups.length > 0 && (
         <Layout.Section>
-          <Card sectioned>
+          <Card>
             <Text variant="headingMd" as="h3">Top Performing Popups</Text>
             <div style={{ marginTop: '16px' }}>
               {topPerformingPopups.slice(0, 5).map((popup: any, index: number) => (
@@ -302,7 +295,7 @@ function DashboardOverview({ data, loading, timeframe }: DashboardOverviewProps)
       {/* Daily Trend */}
       {dailyTrend && dailyTrend.length > 0 && (
         <Layout.Section>
-          <Card sectioned>
+          <Card>
             <Text variant="headingMd" as="h3">Daily Performance Trend</Text>
             <div style={{ marginTop: '16px', maxHeight: '300px', overflowY: 'auto' }}>
               {dailyTrend.slice(0, 10).map((day: any) => (

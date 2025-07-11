@@ -243,7 +243,7 @@ export function StatisticalInsights({ shop, authToken, timeframe }: StatisticalI
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -255,7 +255,7 @@ export function StatisticalInsights({ shop, authToken, timeframe }: StatisticalI
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="Statistical Insights Error">
+          <Banner tone="critical" title="Statistical Insights Error">
             <p>{error}</p>
             <Button onClick={generateInsights}>Retry</Button>
           </Banner>
@@ -263,7 +263,7 @@ export function StatisticalInsights({ shop, authToken, timeframe }: StatisticalI
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">Statistical Insights</Text>
             <Button onClick={generateInsights} loading={loading}>
@@ -294,10 +294,12 @@ function CorrelationAnalysis({ correlations }: { correlations: any[] }) {
   };
 
   return (
-    <Card sectioned>
-      <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-        Factor Correlations
-      </Text>
+    <Card >
+      <div style={{ marginBottom: '16px' }}>
+        <Text variant="headingMd" as="h4">
+          Factor Correlations
+        </Text>
+      </div>
       <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
         {correlations.map((correlation, index) => {
           const corr = formatCorrelation(correlation.correlation);
@@ -321,7 +323,7 @@ function CorrelationAnalysis({ correlations }: { correlations: any[] }) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <Badge tone={corr.strength === 'Strong' ? 'success' : corr.strength === 'Moderate' ? 'info' : 'warning'}>
-                    {corr.strength} {isPositive ? 'Positive' : 'Negative'}
+                    {`${corr.strength} ${isPositive ? 'Positive' : 'Negative'}`}
                   </Badge>
                 </div>
               </div>
@@ -373,11 +375,11 @@ function PredictiveModels({ models }: { models: any[] }) {
     <Layout>
       {models.map((model, index) => (
         <Layout.Section key={index}>
-          <Card sectioned>
+          <Card >
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text variant="headingMd" as="h5">{model.model}</Text>
-                <Badge tone="info">{model.accuracy}% Accuracy</Badge>
+                <Badge tone="info">{`${model.accuracy}% Accuracy`}</Badge>
               </div>
               <Text as="p" tone="subdued" variant="bodySm">
                 {model.description}
@@ -429,10 +431,12 @@ function PredictiveModels({ models }: { models: any[] }) {
 
 function StatisticalTests({ tests }: { tests: any[] }) {
   return (
-    <Card sectioned>
-      <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-        Statistical Test Results
-      </Text>
+    <Card >
+      <div style={{ marginBottom: '16px' }}>
+        <Text variant="headingMd" as="h4">
+          Statistical Test Results
+        </Text>
+      </div>
       <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
         {tests.map((test, index) => (
           <div key={index} style={{
@@ -454,9 +458,11 @@ function StatisticalTests({ tests }: { tests: any[] }) {
                 <Badge tone={test.pValue < 0.05 ? 'success' : 'critical'}>
                   {test.result}
                 </Badge>
-                <Text as="p" tone="subdued" variant="bodySm" style={{ marginTop: '4px' }}>
-                  p = {test.pValue.toFixed(3)}
-                </Text>
+                <div style={{ marginTop: '4px' }}>
+                  <Text as="p" tone="subdued" variant="bodySm">
+                    p = {test.pValue.toFixed(3)}
+                  </Text>
+                </div>
               </div>
             </div>
 
@@ -492,10 +498,12 @@ function Recommendations({ recommendations }: { recommendations: any[] }) {
   };
 
   return (
-    <Card sectioned>
-      <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-        Data-Driven Recommendations
-      </Text>
+    <Card >
+      <div style={{ marginBottom: '16px' }}>
+        <Text variant="headingMd" as="h4">
+          Data-Driven Recommendations
+        </Text>
+      </div>
       <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
         {recommendations
           .sort((a, b) => {

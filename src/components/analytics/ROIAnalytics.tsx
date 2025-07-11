@@ -122,7 +122,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card >
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -134,7 +134,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="ROI Analytics Error">
+          <Banner tone="critical" title="ROI Analytics Error">
             <p>{error}</p>
             <Button onClick={loadROIData}>Retry</Button>
           </Banner>
@@ -142,12 +142,13 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">ROI Analysis</Text>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div style={{ minWidth: '200px' }}>
                 <Select
+                  label="Select Popup"
                   options={[
                     { label: 'All Popups', value: 'all' },
                     // Add popup options here when available
@@ -159,7 +160,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
               <Button 
                 onClick={calculateNewROI} 
                 loading={calculating}
-                primary
+                variant="primary"
               >
                 Calculate ROI
               </Button>
@@ -174,8 +175,8 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
             <>
               {/* ROI Summary */}
               <Layout>
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatPercentage(roiData.summary.totalROI)}
@@ -190,8 +191,8 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatCurrency(roiData.summary.totalRevenue)}
@@ -204,8 +205,8 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
-                  <Card sectioned>
+                <Layout.Section variant="oneThird">
+                  <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
                         {formatPercentage(roiData.summary.avgROI)}
@@ -222,10 +223,10 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
               {/* Best Performing Period */}
               {roiData.summary.bestPerformingPeriod && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4">Best Performing Period</Text>
                     <Layout>
-                      <Layout.Section oneHalf>
+                      <Layout.Section variant="oneHalf">
                         <div style={{ padding: '16px 0' }}>
                           <Text as="p">
                             <strong>Period:</strong> {' '}
@@ -240,7 +241,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
                           </Text>
                         </div>
                       </Layout.Section>
-                      <Layout.Section oneHalf>
+                      <Layout.Section variant="oneHalf">
                         <div style={{ padding: '16px 0' }}>
                           <Text as="p">
                             <strong>Revenue:</strong> {formatCurrency(roiData.summary.bestPerformingPeriod.attributed_revenue)}
@@ -261,7 +262,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
               {/* Detailed ROI Calculations */}
               {roiData.roiCalculations && roiData.roiCalculations.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
+                  <Card >
                     <Text variant="headingMd" as="h4">ROI Calculation History</Text>
                     <div style={{ marginTop: '16px', maxHeight: '400px', overflowY: 'auto' }}>
                       {roiData.roiCalculations.map((calculation: any, index: number) => (
@@ -286,7 +287,7 @@ export function ROIAnalytics({ shop, authToken, timeframe }: ROIAnalyticsProps) 
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <Badge tone={getROIStatus(calculation.roi_percentage).tone}>
-                                {formatPercentage(calculation.roi_percentage)} ROI
+                                {`${formatPercentage(calculation.roi_percentage)} ROI`}
                               </Badge>
                             </div>
                           </div>
