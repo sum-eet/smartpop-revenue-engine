@@ -237,9 +237,11 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
                   <Card >
-                    <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                      Engagement Distribution
-                    </Text>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text variant="headingMd" as="h4">
+                        Engagement Distribution
+                      </Text>
+                    </div>
                     <Layout>
                       <Layout.Section variant="oneThird">
                         <div style={{ textAlign: 'center', padding: '16px' }}>
@@ -273,7 +275,7 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
 
                       <Layout.Section variant="oneThird">
                         <div style={{ textAlign: 'center', padding: '16px' }}>
-                          <Text variant="headingLg" as="h4" tone="warning">
+                          <Text variant="headingLg" as="h4">
                             {behavioralData.behavioralData.filter(s => s.engagement_level === 'low').length}
                           </Text>
                           <Text as="p" tone="subdued">Low Engagement</Text>
@@ -294,9 +296,11 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
                   <Card >
-                    <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                      Device Type Performance
-                    </Text>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text variant="headingMd" as="h4">
+                        Device Type Performance
+                      </Text>
+                    </div>
                     {['mobile', 'desktop', 'tablet'].map(deviceType => {
                       const deviceSessions = behavioralData.behavioralData.filter(s => s.device_type === deviceType);
                       if (deviceSessions.length === 0) return null;
@@ -317,9 +321,11 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                               <Badge tone={getDeviceTypeBadge(deviceType).tone}>
                                 {getDeviceTypeBadge(deviceType).label}
                               </Badge>
-                              <Text as="p" tone="subdued" variant="bodySm" style={{ marginTop: '4px' }}>
-                                {formatNumber(deviceSessions.length)} sessions
-                              </Text>
+                              <div style={{ marginTop: '4px' }}>
+                                <Text as="p" tone="subdued" variant="bodySm">
+                                  {formatNumber(deviceSessions.length)} sessions
+                                </Text>
+                              </div>
                             </div>
                             <Text as="p" variant="bodyMd">
                               {formatPercentage((highEngagementCount / deviceSessions.length) * 100)} high engagement
@@ -357,9 +363,11 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
               {behavioralData.behavioralData && behavioralData.behavioralData.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
                   <Card >
-                    <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                      Recent Sessions
-                    </Text>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text variant="headingMd" as="h4">
+                        Recent Sessions
+                      </Text>
+                    </div>
                     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
                       {behavioralData.behavioralData
                         .sort((a, b) => new Date(b.session_start).getTime() - new Date(a.session_start).getTime())
@@ -461,10 +469,12 @@ export function BehavioralAnalytics({ shop, authToken, timeframe }: BehavioralAn
                                     </Text>
                                   )}
                                   {session.search_queries?.length > 0 && (
-                                    <Text as="p" variant="bodySm" style={{ marginTop: '4px' }}>
-                                      <strong>Search queries:</strong> {session.search_queries.slice(0, 2).join(', ')}
-                                      {session.search_queries.length > 2 && ` +${session.search_queries.length - 2} more`}
-                                    </Text>
+                                    <div style={{ marginTop: '4px' }}>
+                                      <Text as="p" variant="bodySm">
+                                        <strong>Search queries:</strong> {session.search_queries.slice(0, 2).join(', ')}
+                                        {session.search_queries.length > 2 && ` +${session.search_queries.length - 2} more`}
+                                      </Text>
+                                    </div>
                                   )}
                                 </div>
                               )}

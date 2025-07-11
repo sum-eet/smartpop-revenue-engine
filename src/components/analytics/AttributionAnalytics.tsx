@@ -206,9 +206,11 @@ function AttributionPaths({ attributionPaths }: { attributionPaths: Array<{ path
 
   return (
     <Card >
-      <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-        Most Common Attribution Paths
-      </Text>
+      <div style={{ marginBottom: '16px' }}>
+        <Text variant="headingMd" as="h4">
+          Most Common Attribution Paths
+        </Text>
+      </div>
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
         {attributionPaths.map((pathData, index) => (
           <div key={index} style={{
@@ -274,9 +276,11 @@ function CustomerJourneys({
       {insights && (
         <Layout.Section>
           <Card >
-            <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-              Journey Insights
-            </Text>
+            <div style={{ marginBottom: '16px' }}>
+              <Text variant="headingMd" as="h4">
+                Journey Insights
+              </Text>
+            </div>
             <Layout>
               <Layout.Section variant="oneHalf">
                 <div style={{ padding: '8px 0' }}>
@@ -306,9 +310,11 @@ function CustomerJourneys({
 
       <Layout.Section>
         <Card >
-          <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-            Recent Customer Journeys
-          </Text>
+          <div style={{ marginBottom: '16px' }}>
+            <Text variant="headingMd" as="h4">
+              Recent Customer Journeys
+            </Text>
+          </div>
           <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {journeys.slice(0, 20).map((journey: any) => (
               <div key={journey.id} style={{
@@ -401,9 +407,11 @@ function AttributionEvents({ events }: { events: any[] }) {
 
   return (
     <Card >
-      <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-        Recent Attribution Events
-      </Text>
+      <div style={{ marginBottom: '16px' }}>
+        <Text variant="headingMd" as="h4">
+          Recent Attribution Events
+        </Text>
+      </div>
       <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
         {events.slice(0, 50).map((event: any) => (
           <div key={event.id} style={{

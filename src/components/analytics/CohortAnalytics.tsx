@@ -165,6 +165,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div style={{ minWidth: '200px' }}>
                 <Select
+                  label="Cohort Type"
                   options={cohortTypeOptions}
                   value={selectedCohortType}
                   onChange={setSelectedCohortType}
@@ -173,7 +174,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
               <Button 
                 onClick={calculateNewCohortAnalysis} 
                 loading={calculating}
-                primary
+                variant="primary"
               >
                 Calculate Cohorts
               </Button>
@@ -188,7 +189,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
             <>
               {/* Cohort Summary */}
               <Layout>
-                <Layout.Section oneThird>
+                <Layout.Section variant="oneThird">
                   <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
@@ -202,7 +203,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
+                <Layout.Section variant="oneThird">
                   <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
@@ -216,7 +217,7 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                   </Card>
                 </Layout.Section>
 
-                <Layout.Section oneThird>
+                <Layout.Section variant="oneThird">
                   <Card >
                     <div style={{ textAlign: 'center' }}>
                       <Text variant="headingLg" as="h4">
@@ -240,9 +241,11 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                         <Card >
                           <div style={{ textAlign: 'center' }}>
                             <Badge tone="success">Best Performer</Badge>
-                            <Text variant="headingMd" as="h4" style={{ marginTop: '8px' }}>
-                              {cohortData.summary.bestPerformingCohort}
-                            </Text>
+                            <div style={{ marginTop: '8px' }}>
+                              <Text variant="headingMd" as="h4">
+                                {cohortData.summary.bestPerformingCohort}
+                              </Text>
+                            </div>
                             <Text as="p" tone="subdued">
                               Highest conversion rate
                             </Text>
@@ -256,9 +259,11 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
                         <Card >
                           <div style={{ textAlign: 'center' }}>
                             <Badge tone="warning">Needs Attention</Badge>
-                            <Text variant="headingMd" as="h4" style={{ marginTop: '8px' }}>
-                              {cohortData.summary.worstPerformingCohort}
-                            </Text>
+                            <div style={{ marginTop: '8px' }}>
+                              <Text variant="headingMd" as="h4">
+                                {cohortData.summary.worstPerformingCohort}
+                              </Text>
+                            </div>
                             <Text as="p" tone="subdued">
                               Lowest conversion rate
                             </Text>
@@ -274,9 +279,11 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
               {cohortData.cohortAnalysis && cohortData.cohortAnalysis.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
                   <Card >
-                    <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                      Cohort Performance Details
-                    </Text>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text variant="headingMd" as="h4">
+                        Cohort Performance Details
+                      </Text>
+                    </div>
                     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
                       {cohortData.cohortAnalysis
                         .sort((a, b) => b.conversion_rate - a.conversion_rate)
@@ -379,9 +386,11 @@ export function CohortAnalytics({ shop, authToken, timeframe }: CohortAnalyticsP
               {/* Cohort Comparison Chart */}
               <div style={{ marginTop: '20px' }}>
                 <Card >
-                  <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                    Cohort Comparison Chart
-                  </Text>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Text variant="headingMd" as="h4">
+                      Cohort Comparison Chart
+                    </Text>
+                  </div>
                   <div style={{ padding: '20px' }}>
                     {cohortData.cohortAnalysis
                       .sort((a, b) => b.conversion_rate - a.conversion_rate)
