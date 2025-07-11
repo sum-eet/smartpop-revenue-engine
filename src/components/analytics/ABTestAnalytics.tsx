@@ -117,7 +117,7 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
     return (
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Card>
             <SkeletonBodyText lines={8} />
           </Card>
         </Layout.Section>
@@ -129,7 +129,7 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
     <Layout>
       {error && (
         <Layout.Section>
-          <Banner status="critical" title="A/B Test Analytics Error">
+          <Banner tone="critical" title="A/B Test Analytics Error">
             <p>{error}</p>
             <Button onClick={loadABTestData}>Retry</Button>
           </Banner>
@@ -137,7 +137,7 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
       )}
 
       <Layout.Section>
-        <Card sectioned>
+        <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <Text variant="headingMd" as="h3">A/B Test Analytics</Text>
             <Button onClick={loadABTestData} loading={loading}>
@@ -152,59 +152,53 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
           ) : (
             <>
               {/* A/B Test Summary */}
-              <Layout>
-                <Layout.Section oneQuarter>
-                  <Card sectioned>
-                    <div style={{ textAlign: 'center' }}>
-                      <Text variant="headingLg" as="h4">
-                        {abTestData.summary.totalTests}
-                      </Text>
-                      <Text as="p" tone="subdued">Total Tests</Text>
-                    </div>
-                  </Card>
-                </Layout.Section>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                <Card>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text variant="headingLg" as="h4">
+                      {abTestData.summary.totalTests}
+                    </Text>
+                    <Text as="p" tone="subdued">Total Tests</Text>
+                  </div>
+                </Card>
 
-                <Layout.Section oneQuarter>
-                  <Card sectioned>
-                    <div style={{ textAlign: 'center' }}>
-                      <Text variant="headingLg" as="h4">
-                        {abTestData.summary.activeTests}
-                      </Text>
-                      <Text as="p" tone="subdued">Active Tests</Text>
-                    </div>
-                  </Card>
-                </Layout.Section>
+                <Card>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text variant="headingLg" as="h4">
+                      {abTestData.summary.activeTests}
+                    </Text>
+                    <Text as="p" tone="subdued">Active Tests</Text>
+                  </div>
+                </Card>
 
-                <Layout.Section oneQuarter>
-                  <Card sectioned>
-                    <div style={{ textAlign: 'center' }}>
-                      <Text variant="headingLg" as="h4">
-                        {abTestData.summary.significantTests}
-                      </Text>
-                      <Text as="p" tone="subdued">Significant Results</Text>
-                    </div>
-                  </Card>
-                </Layout.Section>
+                <Card>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text variant="headingLg" as="h4">
+                      {abTestData.summary.significantTests}
+                    </Text>
+                    <Text as="p" tone="subdued">Significant Results</Text>
+                  </div>
+                </Card>
 
-                <Layout.Section oneQuarter>
-                  <Card sectioned>
-                    <div style={{ textAlign: 'center' }}>
-                      <Text variant="headingLg" as="h4">
-                        {formatPercentage(abTestData.summary.significanceRate)}
-                      </Text>
-                      <Text as="p" tone="subdued">Significance Rate</Text>
-                    </div>
-                  </Card>
-                </Layout.Section>
-              </Layout>
+                <Card>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text variant="headingLg" as="h4">
+                      {formatPercentage(abTestData.summary.significanceRate)}
+                    </Text>
+                    <Text as="p" tone="subdued">Significance Rate</Text>
+                  </div>
+                </Card>
+              </div>
 
               {/* Detailed A/B Test Results */}
               {abTestData.abTestResults && abTestData.abTestResults.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <Card sectioned>
-                    <Text variant="headingMd" as="h4" style={{ marginBottom: '16px' }}>
-                      Test Results
-                    </Text>
+                  <Card>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text variant="headingMd" as="h4">
+                        Test Results
+                      </Text>
+                    </div>
                     <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
                       {abTestData.abTestResults.map((test: any) => {
                         const performance = calculateVariantPerformance(test);
@@ -237,7 +231,7 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
                                   {getTestStatusBadge(test.test_status, test.is_statistically_significant).label}
                                 </Badge>
                                 <Badge tone={getConversionLiftBadge(test.conversion_lift).tone}>
-                                  {formatPercentage(test.conversion_lift)} lift
+                                  {`${formatPercentage(test.conversion_lift)} lift`}
                                 </Badge>
                                 {test.is_statistically_significant && (
                                   <Badge tone="success">Significant</Badge>
@@ -280,9 +274,11 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
                                 borderRadius: '6px',
                                 backgroundColor: '#f9fafb'
                               }}>
-                                <Text variant="bodyMd" as="p" style={{ marginBottom: '12px' }}>
-                                  <strong>Control: {test.control_variant}</strong>
-                                </Text>
+                                <div style={{ marginBottom: '12px' }}>
+                                  <Text variant="bodyMd" as="p">
+                                    <strong>Control: {test.control_variant}</strong>
+                                  </Text>
+                                </div>
                                 <div style={{ display: 'grid', gap: '8px' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Text as="p" variant="bodySm">Visitors:</Text>
@@ -314,9 +310,11 @@ export function ABTestAnalytics({ shop, authToken, timeframe }: ABTestAnalyticsP
                                 borderRadius: '6px',
                                 backgroundColor: test.conversion_lift > 0 ? '#f0f9ff' : '#fef7f0'
                               }}>
-                                <Text variant="bodyMd" as="p" style={{ marginBottom: '12px' }}>
-                                  <strong>Treatment: {test.treatment_variant}</strong>
-                                </Text>
+                                <div style={{ marginBottom: '12px' }}>
+                                  <Text variant="bodyMd" as="p">
+                                    <strong>Treatment: {test.treatment_variant}</strong>
+                                  </Text>
+                                </div>
                                 <div style={{ display: 'grid', gap: '8px' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Text as="p" variant="bodySm">Visitors:</Text>

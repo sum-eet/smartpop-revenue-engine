@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Page, Layout, Tabs, Text, Button, Select, SkeletonBodyText, Banner, Badge } from '@shopify/polaris';
+import { Card, Layout, Text, Button, Badge, Tabs, Select, Page, Banner, SkeletonBodyText } from '@shopify/polaris';
 import { ROIAnalytics } from './ROIAnalytics';
 import { AttributionAnalytics } from './AttributionAnalytics';
 import { CohortAnalytics } from './CohortAnalytics';
