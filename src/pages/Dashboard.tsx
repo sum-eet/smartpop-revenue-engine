@@ -322,7 +322,7 @@ const Dashboard = () => {
                             </div>
                             <div>
                               {(() => {
-                                const popupAnalytics = analytics.byPopup?.find(p => p.popupId === popup.id);
+                                const popupAnalytics = analytics?.byPopup?.find(p => p.popupId === popup.id);
                                 return (
                                   <>
                                     <span className="font-medium">
