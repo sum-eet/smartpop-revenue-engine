@@ -10,7 +10,7 @@ export const featureFlags = {
   // Enable specific component migrations
   enablePolarisButtons: import.meta.env.VITE_ENABLE_POLARIS_BUTTONS === 'true' || import.meta.env.VITE_ENABLE_POLARIS === 'true',
   enablePolarisCards: import.meta.env.VITE_ENABLE_POLARIS_CARDS === 'true' || import.meta.env.VITE_ENABLE_POLARIS === 'true',
-  enablePolarisLayout: import.meta.env.VITE_ENABLE_POLARIS_LAYOUT === 'true' || import.meta.env.VITE_ENABLE_POLARIS === 'true',
+  enablePolarisLayout: false, // Temporarily disabled - DashboardPolarisSimple has runtime issues
   
   // Development flags
   enablePolarisDebug: import.meta.env.VITE_POLARIS_DEBUG === 'true',
