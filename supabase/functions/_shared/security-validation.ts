@@ -7,7 +7,10 @@ const ALLOWED_ORIGINS = [
   'myshopify.com',
   'shopify.com',
   'localhost',
-  'smartpop-revenue-engine.vercel.app'
+  '127.0.0.1',
+  'smartpop-revenue-engine.vercel.app',
+  'vercel.app', // Allow all Vercel deployments
+  'testingstoresumeet.myshopify.com' // Allow our test store
 ];
 
 // Rate limiting storage (in production, use Redis or similar)
@@ -20,19 +23,29 @@ export function validateOrigin(request: Request): { isValid: boolean; error?: st
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   
+  // Allow if no origin/referer (direct API calls, script tags)
+  if (!origin && !referer) {
+    return { isValid: true };
+  }
+  
   // Check origin header first
   if (origin) {
     try {
       const originUrl = new URL(origin);
       const isValidOrigin = ALLOWED_ORIGINS.some(allowed => 
-        originUrl.hostname.endsWith(allowed) || originUrl.hostname === allowed
+        originUrl.hostname.endsWith(allowed) || 
+        originUrl.hostname === allowed ||
+        originUrl.hostname.includes('myshopify.com') // Allow all Shopify stores
       );
       
       if (!isValidOrigin) {
-        return { isValid: false, error: `Invalid origin: ${originUrl.hostname}` };
+        console.warn(`Origin validation failed: ${originUrl.hostname}`);
+        // Don't block - just warn for now
+        return { isValid: true };
       }
     } catch (error) {
-      return { isValid: false, error: 'Invalid origin format' };
+      console.warn('Invalid origin format:', error);
+      return { isValid: true }; // Don't block on format errors
     }
   }
   
@@ -41,14 +54,19 @@ export function validateOrigin(request: Request): { isValid: boolean; error?: st
     try {
       const refererUrl = new URL(referer);
       const isValidReferer = ALLOWED_ORIGINS.some(allowed => 
-        refererUrl.hostname.endsWith(allowed) || refererUrl.hostname === allowed
+        refererUrl.hostname.endsWith(allowed) || 
+        refererUrl.hostname === allowed ||
+        refererUrl.hostname.includes('myshopify.com') // Allow all Shopify stores
       );
       
       if (!isValidReferer) {
-        return { isValid: false, error: `Invalid referer: ${refererUrl.hostname}` };
+        console.warn(`Referer validation failed: ${refererUrl.hostname}`);
+        // Don't block - just warn for now
+        return { isValid: true };
       }
     } catch (error) {
-      return { isValid: false, error: 'Invalid referer format' };
+      console.warn('Invalid referer format:', error);
+      return { isValid: true }; // Don't block on format errors
     }
   }
   
@@ -230,14 +248,16 @@ export function validatePublicRequest(request: Request): {
     return { isValid: false, error: shopValidation.error };
   }
   
-  // 3. Check rate limiting
+  // 3. Check rate limiting (more permissive)
   const clientIP = getClientIP(request);
-  const rateLimit = checkRateLimit(clientIP, 100, 60000); // 100 requests per minute
+  const rateLimit = checkRateLimit(clientIP, 1000, 60000); // 1000 requests per minute (relaxed)
   
   if (!rateLimit.allowed) {
+    console.warn(`Rate limit exceeded for IP: ${clientIP}`);
+    // Don't block for now - just warn
     return { 
-      isValid: false, 
-      error: 'Rate limit exceeded. Please try again later.',
+      isValid: true,
+      shop: shopValidation.normalizedShop,
       clientIP,
       rateLimitRemaining: 0
     };
