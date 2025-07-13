@@ -4,7 +4,7 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/((?!popup-script\\.js$).*)",
+      "source": "/((?!popup-script\\.js$|popup-data\\.json$).*)",
       "destination": "/index.html"
     }
   ],
@@ -23,6 +23,23 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/popup-data.json",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60"
         }
       ]
     },
