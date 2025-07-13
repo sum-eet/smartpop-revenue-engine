@@ -237,8 +237,6 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
     const currentPath = window.location.pathname;
     const hostname = window.location.hostname;
     
-    ${debug ? `console.log('🔍 SmartPop URL Check:', { url: currentUrl, hostname: hostname, path: currentPath });` : ''}
-    
     // MAIN ADMIN DETECTION: admin.shopify.com domain
     if (hostname === 'admin.shopify.com') {
       console.log('🚫 SmartPop: Blocked admin.shopify.com domain');
@@ -394,8 +392,6 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
           // 🎯 FIXED: Precise calculation with Math.floor for exact trigger point
           const currentScrollPercent = Math.floor((scrollTop / docHeight) * 100);
           
-          ${debug ? `console.log('📊 Scroll:', currentScrollPercent + '% / target:', targetScrollPercent + '%');` : ''}
-          
           // 🏎️ FIXED: Fast scroll protection - use >= to catch users who scroll past
           if (currentScrollPercent >= targetScrollPercent) {
             scrollTriggered = true;
@@ -473,7 +469,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
     
     console.log('🎯 Showing popup:', popup.name, 'ID:', popup.id);
     
-    const popupHTML = \`
+    const popupHTML = "
       <div id="smartpop-\${popup.id}" style="
         position: fixed;
         top: 0;
@@ -552,7 +548,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
           </button>
         </div>
       </div>
-    \`;
+    ";
     
     document.body.insertAdjacentHTML('beforeend', popupHTML);
     
@@ -774,7 +770,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
           </button>
         </div>
       </div>
-    \`;
+    ";
     
     // Auto-close after 5 seconds
     setTimeout(() => {
