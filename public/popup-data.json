@@ -1,0 +1,102 @@
+{
+  "success": true,
+  "campaigns": [
+    {
+      "id": "json-welcome",
+      "name": "Welcome to Our Store!",
+      "title": "Welcome to Our Store!",
+      "description": "Get 15% off your first purchase!",
+      "discount_percent": 15,
+      "discount_code": "WELCOME15",
+      "trigger_type": "time_delay",
+      "trigger_value": "3",
+      "is_active": true,
+      "triggers": {
+        "timeOnSite": 3,
+        "scrollDepth": 20,
+        "isFirstVisit": true
+      }
+    },
+    {
+      "id": "json-scroll",
+      "name": "Scroll Offer",
+      "title": "Still Browsing?",
+      "description": "Save 10% before you leave!",
+      "discount_percent": 10,
+      "discount_code": "SAVE10",
+      "trigger_type": "scroll_depth",
+      "trigger_value": "50",
+      "is_active": true,
+      "triggers": {
+        "scrollDepth": 50
+      }
+    }
+  ],
+  "popups": [
+    {
+      "id": "json-welcome",
+      "name": "Welcome to Our Store!",
+      "title": "Welcome to Our Store!",
+      "description": "Get 15% off your first purchase!",
+      "discount_percent": 15,
+      "discount_code": "WELCOME15",
+      "trigger_type": "time_delay",
+      "trigger_value": "3",
+      "is_active": true,
+      "triggers": {
+        "timeOnSite": 3,
+        "scrollDepth": 20,
+        "isFirstVisit": true
+      }
+    },
+    {
+      "id": "json-scroll",
+      "name": "Scroll Offer",
+      "title": "Still Browsing?",
+      "description": "Save 10% before you leave!",
+      "discount_percent": 10,
+      "discount_code": "SAVE10",
+      "trigger_type": "scroll_depth",
+      "trigger_value": "50",
+      "is_active": true,
+      "triggers": {
+        "scrollDepth": 50
+      }
+    }
+  ],
+  "data": [
+    {
+      "id": "json-welcome",
+      "name": "Welcome to Our Store!",
+      "title": "Welcome to Our Store!",
+      "description": "Get 15% off your first purchase!",
+      "discount_percent": 15,
+      "discount_code": "WELCOME15",
+      "trigger_type": "time_delay",
+      "trigger_value": "3",
+      "is_active": true,
+      "triggers": {
+        "timeOnSite": 3,
+        "scrollDepth": 20,
+        "isFirstVisit": true
+      }
+    },
+    {
+      "id": "json-scroll",
+      "name": "Scroll Offer",
+      "title": "Still Browsing?",
+      "description": "Save 10% before you leave!",
+      "discount_percent": 10,
+      "discount_code": "SAVE10",
+      "trigger_type": "scroll_depth",
+      "trigger_value": "50",
+      "is_active": true,
+      "triggers": {
+        "scrollDepth": 50
+      }
+    }
+  ],
+  "shop": "testingstoresumeet.myshopify.com",
+  "message": "STATIC JSON BYPASS - NO AUTH",
+  "timestamp": "2025-01-13T00:00:00.000Z"
+}
