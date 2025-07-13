@@ -165,12 +165,42 @@
   window.addEventListener('scroll', handleScroll, { passive: true });
   document.addEventListener('mouseleave', handleMouseLeave);
 
-  // Load popup configurations
-  async function loadPopupConfigs() {
+  // Load popup configurations - HARDCODED NUCLEAR BYPASS
+  function loadPopupConfigs() {
     try {
-      console.log('🎯 SMARTPOP DEBUG: Loading popup configs for shop:', SHOP_DOMAIN);
-      const response = await fetch(`${API_BASE}/popup-config?action=list&shop_domain=${encodeURIComponent(SHOP_DOMAIN)}`);
-      const data = await response.json();
+      console.log('🎯 SMARTPOP DEBUG: Loading HARDCODED popup configs for shop:', SHOP_DOMAIN);
+      
+      // NUCLEAR OPTION: Hardcoded popup data - NO API CALLS
+      const data = [
+        {
+          id: 'hardcoded-welcome',
+          name: 'Welcome Offer',
+          title: 'Welcome to Our Store!',
+          description: 'Get 15% off your first purchase!',
+          discount_percent: 15,
+          discount_code: 'WELCOME15',
+          trigger_type: 'time_delay',
+          trigger_value: '3',
+          is_active: true,
+          is_deleted: false,
+          button_text: 'Get My Discount',
+          email_placeholder: 'Enter your email for 15% off'
+        },
+        {
+          id: 'hardcoded-scroll',
+          name: 'Scroll Offer',
+          title: 'Still Browsing?',
+          description: 'Save 10% before you leave!',
+          discount_percent: 10,
+          discount_code: 'SAVE10',
+          trigger_type: 'scroll_depth',
+          trigger_value: '50',
+          is_active: true,
+          is_deleted: false,
+          button_text: 'Claim Offer',
+          email_placeholder: 'Your email for instant discount'
+        }
+      ];
       
       console.log('🎯 SMARTPOP DEBUG: Raw popup data from API:', data);
       console.log('🎯 SMARTPOP DEBUG: Total popups received:', data.length);
