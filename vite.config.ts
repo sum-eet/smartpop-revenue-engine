@@ -20,15 +20,72 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Aggressive bundle size optimization
+    chunkSizeWarningLimit: 500, // Stricter warning limit
+    
     rollupOptions: {
+      ...((mode === 'production') && {
+        external: (id) => {
+          // Keep internal but optimize for lazy loading
+          return false;
+        }
+      }),
       output: {
+        // Optimize asset names for better caching
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name === 'popup-sdk') {
+            return 'popup-sdk.[hash].js'; // Critical popup code
+          }
+          return 'assets/[name].[hash].js';
+        },
+        
+        chunkFileNames: (chunkInfo) => {
+          if (chunkInfo.name?.includes('admin')) {
+            return 'admin/[name].[hash].js'; // Admin chunks in separate folder
+          }
+          return 'assets/[name].[hash].js';
+        },
+        
         manualChunks: {
-          // Core React chunks
-          'react-vendor': ['react', 'react-dom'],
-          'react-router': ['react-router-dom'],
+          // Minimal customer-facing popup SDK
+          'popup-sdk': [
+            './src/popup-sdk/index.ts',
+            './src/components/PopupManager.tsx',
+            './src/components/PopupSDK.tsx'
+          ],
           
-          // UI library chunks
-          'ui-vendor': [
+          // Core React chunks (customer-facing)
+          'react-core': ['react', 'react-dom'],
+          
+          // Admin dashboard chunks (lazy loaded)
+          'admin-dashboard': [
+            './src/pages/Dashboard.tsx',
+            './src/components/analytics/AdvancedAnalytics.tsx',
+            './src/components/analytics/ABTestAnalytics.tsx',
+            './src/components/analytics/ROIAnalytics.tsx',
+            './src/components/analytics/StatisticalInsights.tsx',
+            './src/components/analytics/CohortAnalytics.tsx',
+            './src/components/analytics/AttributionAnalytics.tsx',
+            './src/components/analytics/BehavioralAnalytics.tsx'
+          ],
+          
+          // Heavy analytics dependencies (admin only)
+          'analytics-heavy': [
+            '@tanstack/react-query',
+            'recharts',
+            'date-fns'
+          ],
+          
+          // Shopify admin components (admin only)
+          'shopify-admin': [
+            '@shopify/app-bridge',
+            '@shopify/app-bridge-react',
+            '@shopify/polaris',
+            '@shopify/polaris-icons'
+          ],
+          
+          // UI library chunks (admin only)
+          'ui-admin': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-dropdown-menu',
             '@radix-ui/react-tabs',
@@ -57,41 +114,22 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tooltip'
           ],
           
-          // Analytics and data visualization
-          'analytics-vendor': [
-            '@tanstack/react-query',
-            'recharts',
-            'date-fns'
-          ],
+          // Routing (shared but minimal)
+          'router': ['react-router-dom'],
           
-          // Shopify App Bridge (only loaded when needed)
-          'shopify-vendor': [
-            '@shopify/app-bridge',
-            '@shopify/app-bridge-react'
-          ],
-          
-          // Shopify Polaris (UI components)
-          'polaris-vendor': [
-            '@shopify/polaris',
-            '@shopify/polaris-icons'
-          ],
-          
-          // Icons
-          'icons-vendor': ['lucide-react'],
-          
-          // Utilities
-          'utils-vendor': [
+          // Essential utilities only
+          'utils-minimal': [
             'clsx',
-            'tailwind-merge',
-            'class-variance-authority',
+            'tailwind-merge'
+          ],
+          
+          // Performance monitoring (minimal impact)
+          'performance': [
             'web-vitals'
           ]
         }
       }
     },
-    
-    // Optimize chunk sizes
-    chunkSizeWarningLimit: 1000,
     
     // Enable source maps for production debugging
     sourcemap: mode === 'production' ? false : true,
