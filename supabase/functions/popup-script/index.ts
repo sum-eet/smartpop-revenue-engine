@@ -187,19 +187,42 @@ serve(async (req) => {
     }
   };
 
-  async function loadAndShowPopups() {
+  function loadAndShowPopups() {
     try {
-      console.log('📥 Loading popup configs...');
+      console.log('📥 Loading HARDCODED popup configs...');
       
-      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config?action=list&shop_domain=${shop}');
+      // NUCLEAR OPTION: Hardcoded popup data - NO API CALLS
+      const response = { ok: true };
+      const data = [
+        {
+          id: 'nuclear-welcome',
+          name: 'Welcome Offer',
+          title: 'Welcome to Our Store!',
+          description: 'Get 15% off your first purchase!',
+          discount_percent: 15,
+          discount_code: 'WELCOME15',
+          trigger_type: 'time_delay',
+          trigger_value: '3',
+          is_active: true,
+          is_deleted: false
+        },
+        {
+          id: 'nuclear-scroll',
+          name: 'Scroll Offer', 
+          title: 'Still Browsing?',
+          description: 'Save 10% before you leave!',
+          discount_percent: 10,
+          discount_code: 'SAVE10',
+          trigger_type: 'scroll_depth',
+          trigger_value: '50',
+          is_active: true,
+          is_deleted: false
+        }
+      ];
       
-      if (!response.ok) {
-        console.log('❌ Failed to load popups:', response.status);
-        return;
-      }
-      
-      popups = await response.json();
-      console.log('📊 Loaded', popups.length, 'popup configs');
+      // Use hardcoded data directly - NO NETWORK CALLS
+      popups = data;
+      console.log('📊 Loaded', popups.length, 'HARDCODED popup configs');
       
       startBehaviorTracking();
       
