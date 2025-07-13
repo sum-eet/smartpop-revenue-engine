@@ -2,10 +2,11 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { PopupManager } from './components/PopupManager';
 import { AppBridgeProvider } from './components/AppBridgeProvider';
 import { PolarisProvider } from './components/PolarisProvider';
+import { monitoring, trackCustomEvent } from './lib/monitoring';
 
 // Lazy load admin dashboard and heavy components
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -35,6 +36,24 @@ const ConditionalPopupManager = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Track app initialization
+    trackCustomEvent('app_initialized', {
+      timestamp: Date.now(),
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    });
+
+    // Track performance metrics
+    const loadTime = performance.now();
+    if (loadTime > 1000) {
+      trackCustomEvent('app_slow_load', {
+        loadTime,
+        timestamp: Date.now()
+      });
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AppBridgeProvider>
