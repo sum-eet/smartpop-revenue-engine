@@ -101,7 +101,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
   // Load popup configurations
   async function loadPopups() {
     try {
-      const response = await fetch('${apiBaseUrl}/popup-config?shop=${shop}');
+      const response = await fetch('${apiBaseUrl}/popup-test?shop=${shop}');
       const data = await response.json();
       popups = data.campaigns || [];
     } catch (error) {
