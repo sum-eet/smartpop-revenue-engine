@@ -152,7 +152,7 @@ serve(async (req) => {
     if (window.validateEmail(email)) {
       console.log('✅ Email validation passed');
       
-      // Store in database (non-blocking)
+      // Track conversion event to database
       fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,42 +187,36 @@ serve(async (req) => {
     }
   };
 
-  function loadAndShowPopups() {
+  async function loadAndShowPopups() {
     try {
-      console.log('📥 Loading HARDCODED popup configs...');
+      console.log('📥 Loading popup configs from API...');
       
-      // NUCLEAR OPTION: Hardcoded popup data - NO API CALLS
-      const response = { ok: true };
-      const data = [
-        {
-          id: 'nuclear-welcome',
-          name: 'Welcome Offer',
-          title: 'Welcome to Our Store!',
-          description: 'Get 15% off your first purchase!',
-          discount_percent: 15,
-          discount_code: 'WELCOME15',
-          trigger_type: 'time_delay',
-          trigger_value: '3',
-          is_active: true,
-          is_deleted: false
-        },
-        {
-          id: 'nuclear-scroll',
-          name: 'Scroll Offer', 
-          title: 'Still Browsing?',
-          description: 'Save 10% before you leave!',
-          discount_percent: 10,
-          discount_code: 'SAVE10',
-          trigger_type: 'scroll_depth',
-          trigger_value: '50',
-          is_active: true,
-          is_deleted: false
-        }
-      ];
+      // Call the popup-config-public API that doesn't require authentication
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config-public?shop=${shop}');
+      const data = await response.json();
       
-      // Use hardcoded data directly - NO NETWORK CALLS
-      popups = data;
-      console.log('📊 Loaded', popups.length, 'HARDCODED popup configs');
+      if (!response.ok) {
+        console.log('❌ Failed to load popups:', response.status);
+        // Fallback to hardcoded data if API fails
+        popups = [
+          {
+            id: 'fallback-welcome',
+            name: 'Welcome Offer',
+            title: 'Welcome to Our Store!',
+            description: 'Get 15% off your first purchase!',
+            discount_percent: 15,
+            discount_code: 'WELCOME15',
+            trigger_type: 'time_delay',
+            trigger_value: '3',
+            is_active: true,
+            is_deleted: false
+          }
+        ];
+        console.log('📊 Using fallback popup configs');
+      } else {
+        popups = data.campaigns || data || [];
+        console.log('📊 Loaded', popups.length, 'popup configs from API');
+      }
       
       startBehaviorTracking();
       

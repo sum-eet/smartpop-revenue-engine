@@ -98,14 +98,60 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
   let popups = [];
   let shown = new Set();
   
-  // Load popup configurations
+  // Load popup configurations from API
   async function loadPopups() {
     try {
-      const response = await fetch('${apiBaseUrl}/popup-test?shop=${shop}');
+      // Call the popup-config-public API that doesn't require authentication
+      const response = await fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-config-public?shop=${shop}');
       const data = await response.json();
-      popups = data.campaigns || [];
+      
+      if (response.ok && data.campaigns) {
+        // Transform API data to expected format
+        popups = data.campaigns.map(popup => ({
+          id: popup.id,
+          name: popup.name || popup.title,
+          title: popup.title || popup.name,
+          description: popup.description,
+          discount_percent: popup.discount_percent,
+          discount_code: popup.discount_code,
+          trigger_type: popup.trigger_type,
+          trigger_value: popup.trigger_value,
+          is_active: popup.is_active,
+          triggers: {
+            timeOnSite: popup.trigger_type === 'time_delay' ? parseInt(popup.trigger_value || '3') : null,
+            scrollDepth: popup.trigger_type === 'scroll_depth' ? parseInt(popup.trigger_value || '50') : null,
+            isFirstVisit: popup.trigger_type === 'page_view',
+            hasExitIntent: popup.trigger_type === 'exit_intent'
+          }
+        }));
+        console.log('SmartPop: Loaded', popups.length, 'popups from API');
+      } else {
+        // Fallback to basic popup if API fails
+        popups = [
+          {
+            id: 'fallback-popup',
+            name: 'Welcome Offer',
+            title: 'Welcome to Our Store!',
+            description: 'Get 15% off your first purchase!',
+            discount_percent: 15,
+            discount_code: 'WELCOME15',
+            triggers: { timeOnSite: 3 }
+          }
+        ];
+        console.log('SmartPop: Using fallback popup data');
+      }
     } catch (error) {
       console.error('SmartPop: Failed to load popups', error);
+      // Fallback data
+      popups = [
+        {
+          id: 'error-fallback',
+          name: 'Special Offer',
+          title: 'Don\'t Miss Out!',
+          description: 'Limited time offer!',
+          triggers: { timeOnSite: 5 }
+        }
+      ];
     }
   }
   
@@ -191,8 +237,8 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
     overlay.appendChild(content);
     document.body.appendChild(overlay);
     
-    // Track view
-    fetch('${apiBaseUrl}/popup-track', {
+    // Track popup view
+    fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -212,7 +258,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
     
     if (email) {
       // Track conversion
-      fetch('${apiBaseUrl}/popup-track', {
+      fetch('https://zsmoutzjhqjgjehaituw.supabase.co/functions/v1/popup-track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,7 +294,7 @@ function generateEmbedScript(shop: string, debug: boolean = false, request?: Req
   
   // Initialize
   async function init() {
-    await loadPopups();
+    await loadPopups(); // Now async - wait for popup data
     startTracking();
     setInterval(checkTriggers, 1000);
   }
